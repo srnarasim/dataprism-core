@@ -1,4 +1,5 @@
 import { DependencyRegistry, DependencyEvent } from "./dependency-registry.js";
+import { DataPrismError } from "./types.js";
 
 export type DataPrismEventType = 
   | "dependencyLoading"
@@ -21,7 +22,7 @@ export interface DataPrismEvent {
     total: number;
     percentage: number;
   };
-  error?: Error;
+  error?: Error | DataPrismError;
   metadata?: any;
   timestamp: number;
 }

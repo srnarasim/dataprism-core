@@ -65,7 +65,7 @@ export class DuckDBCDNLoader {
       }
       
       this.config = await response.json();
-      return this.config;
+      return this.config as DuckDBConfig;
     } catch (error) {
       console.warn('Failed to load DuckDB config from CDN, using fallback');
       throw error;
@@ -108,7 +108,7 @@ export class DuckDBCDNLoader {
   /**
    * Select the best bundle for the current environment
    */
-  async selectBundle(bundles: any[]): Promise<any> {
+  async selectBundle(bundles: any[] | any): Promise<any> {
     try {
       // If we have CDN bundles, select based on browser capabilities
       if (Array.isArray(bundles) && bundles.length > 0) {

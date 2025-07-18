@@ -1,7 +1,7 @@
 var k = Object.defineProperty;
 var A = (d, e, t) => e in d ? k(d, e, { enumerable: !0, configurable: !0, writable: !0, value: t }) : d[e] = t;
 var s = (d, e, t) => A(d, typeof e != "symbol" ? e + "" : e, t);
-import * as w from "@duckdb/duckdb-wasm";
+import * as p from "@duckdb/duckdb-wasm";
 const h = class h {
   constructor() {
     s(this, "errorLog", []);
@@ -29,9 +29,9 @@ const h = class h {
   }
 };
 s(h, "instance");
-let f = h;
+let w = h;
 typeof window < "u" && window.addEventListener("unhandledrejection", (d) => {
-  f.getInstance().handleError(d.reason, "orchestration");
+  w.getInstance().handleError(d.reason, "orchestration");
 });
 class v {
   constructor(e) {
@@ -74,7 +74,7 @@ class v {
     try {
       const e = await this.loadConfig();
       if (e.hybrid)
-        return console.log("Using hybrid DuckDB loading (JSDelivr WASM + CDN workers)"), w.getJsDelivrBundles();
+        return console.log("Using hybrid DuckDB loading (JSDelivr WASM + CDN workers)"), p.getJsDelivrBundles();
       if (e.bundles)
         return Object.entries(e.bundles).map(([r, i]) => ({
           name: r,
@@ -84,7 +84,7 @@ class v {
         }));
       throw new Error("Invalid CDN configuration");
     } catch {
-      return console.log("Using JSDelivr fallback for DuckDB"), w.getJsDelivrBundles();
+      return console.log("Using JSDelivr fallback for DuckDB"), p.getJsDelivrBundles();
     }
   }
   /**
@@ -92,7 +92,7 @@ class v {
    */
   async selectBundle(e) {
     try {
-      return Array.isArray(e) && e.length > 0 ? typeof SharedArrayBuffer < "u" && e.find((t) => t.name === "coi") ? e.find((t) => t.name === "coi") : e.find((t) => t.name === "eh") ? e.find((t) => t.name === "eh") : e.find((t) => t.name === "mvp") || e[0] : await w.selectBundle(e);
+      return Array.isArray(e) && e.length > 0 ? typeof SharedArrayBuffer < "u" && e.find((t) => t.name === "coi") ? e.find((t) => t.name === "coi") : e.find((t) => t.name === "eh") ? e.find((t) => t.name === "eh") : e.find((t) => t.name === "mvp") || e[0] : await p.selectBundle(e);
     } catch (t) {
       throw console.error("Bundle selection failed:", t), t;
     }
@@ -105,7 +105,7 @@ class v {
       new Blob([`importScripts("${t.mainWorker}");`], {
         type: "text/javascript"
       })
-    ), i = new Worker(r), n = new w.ConsoleLogger(), o = new w.AsyncDuckDB(n, i);
+    ), i = new Worker(r), n = new p.ConsoleLogger(), o = new p.AsyncDuckDB(n, i);
     return await o.instantiate(t.mainModule, t.pthreadWorker), o;
   }
 }
@@ -114,7 +114,7 @@ class T {
     s(this, "db", null);
     s(this, "connection", null);
     s(this, "initialized", !1);
-    s(this, "errorHandler", f.getInstance());
+    s(this, "errorHandler", w.getInstance());
     s(this, "cdnLoader");
     this.cdnLoader = new v(e);
   }
@@ -398,12 +398,12 @@ const u = class u {
   }
 };
 s(u, "instance");
-let p = u;
+let f = u;
 const g = class g {
   constructor() {
     s(this, "registry");
     s(this, "arrowModule", null);
-    this.registry = p.getInstance();
+    this.registry = f.getInstance();
   }
   static getInstance() {
     return g.instance || (g.instance = new g()), g.instance;
@@ -564,8 +564,8 @@ class $ {
     s(this, "config");
     s(this, "initialized", !1);
     s(this, "startTime", Date.now());
-    s(this, "errorHandler", f.getInstance());
-    s(this, "dependencyRegistry", p.getInstance());
+    s(this, "errorHandler", w.getInstance());
+    s(this, "dependencyRegistry", f.getInstance());
     s(this, "arrowLoader", E.getInstance());
     s(this, "metrics", {
       queryCount: 0,
@@ -776,8 +776,6 @@ class $ {
 }
 const y = class y {
   constructor() {
-    s(this, "registry");
-    this.registry = p.getInstance();
   }
   static getInstance() {
     return y.instance || (y.instance = new y()), y.instance;
@@ -874,7 +872,7 @@ const m = class m {
     s(this, "eventHandlers", /* @__PURE__ */ new Map());
     s(this, "registry");
     s(this, "initializationStartTime", 0);
-    this.registry = p.getInstance(), this.setupRegistryEventHandlers();
+    this.registry = f.getInstance(), this.setupRegistryEventHandlers();
   }
   static getInstance() {
     return m.instance || (m.instance = new m()), m.instance;
@@ -1072,9 +1070,9 @@ export {
   $ as DataPrismEngine,
   D as DependencyErrorHandler,
   R as DependencyEventSystem,
-  p as DependencyRegistry,
+  f as DependencyRegistry,
   T as DuckDBManager,
-  f as ErrorHandler,
+  w as ErrorHandler,
   M as createEngine,
   $ as default,
   L as name,

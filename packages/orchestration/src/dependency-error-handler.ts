@@ -1,5 +1,5 @@
 import { DataPrismError } from "./types.js";
-import { DependencyRegistry, DependencyMetadata } from "./dependency-registry.js";
+import { DependencyMetadata } from "./dependency-registry.js";
 
 export interface EnhancedError extends DataPrismError {
   dependency?: string;
@@ -15,10 +15,8 @@ export interface EnhancedError extends DataPrismError {
 
 export class DependencyErrorHandler {
   private static instance: DependencyErrorHandler;
-  private registry: DependencyRegistry;
-
   private constructor() {
-    this.registry = DependencyRegistry.getInstance();
+    // Registry access available if needed
   }
 
   static getInstance(): DependencyErrorHandler {

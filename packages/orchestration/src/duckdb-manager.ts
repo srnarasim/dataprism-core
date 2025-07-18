@@ -1,5 +1,5 @@
 import { AsyncDuckDB, AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
-import { QueryMetadata, QueryResult, DataPrismError } from "./types.js";
+import { QueryResult } from "./types.js";
 import { ErrorHandler } from "./error-handler.js";
 import { DuckDBCDNLoader } from "./duckdb-cdn-loader.js";
 

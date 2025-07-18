@@ -79,7 +79,7 @@ export class DependencyRegistry {
       return this.loadingPromises.get(name);
     }
 
-    const metadata = this.dependencies.get(name) || this.registerDependency(name, options);
+    this.dependencies.get(name) || this.registerDependency(name, options);
     
     const loadPromise = this.executeLoad(name, loader, options);
     this.loadingPromises.set(name, loadPromise);
@@ -155,8 +155,8 @@ export class DependencyRegistry {
   private async performLoad(
     name: string,
     loader: () => Promise<any>,
-    options: DependencyLoadOptions,
-    timeoutId: NodeJS.Timeout
+    _options: DependencyLoadOptions,
+    _timeoutId: NodeJS.Timeout
   ): Promise<any> {
     this.setState(name, "loading");
     return await loader();
