@@ -1,0 +1,55 @@
+{
+  "name": "@dataprism/core",
+  "version": "1.0.0",
+  "description": "DataPrism Core Platform - WebAssembly analytics engine with TypeScript orchestration",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./wasm": "./dist/wasm/index.js",
+    "./orchestration": "./dist/orchestration/index.js"
+  },
+  "scripts": {
+    "build": "npm run build:wasm && npm run build:orchestration",
+    "build:wasm": "cd packages/core && wasm-pack build --target web --out-dir pkg",
+    "build:orchestration": "cd packages/orchestration && vite build",
+    "test": "npm run test:rust && npm run test:ts",
+    "test:rust": "cargo test",
+    "test:ts": "vitest run",
+    "test:integration": "vitest run tests/integration",
+    "test:performance": "node tests/performance/benchmark.js",
+    "lint": "npm run lint:rust && npm run lint:ts",
+    "lint:rust": "cargo clippy -- -D warnings",
+    "lint:ts": "eslint \"**/*.{ts,tsx}\" --max-warnings 0",
+    "type-check": "tsc --noEmit",
+    "dev": "vite",
+    "clean": "rm -rf dist target"
+  },
+  "dependencies": {
+    "@duckdb/duckdb-wasm": "^1.29.1-dev132.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.2.0",
+    "vite": "^5.4.8",
+    "vitest": "^1.6.0",
+    "eslint": "^8.50.0",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0"
+  },
+  "keywords": [
+    "analytics",
+    "webassembly",
+    "duckdb",
+    "data-processing",
+    "wasm",
+    "typescript"
+  ],
+  "author": "DataPrism Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/srnarasim/dataprism-core.git"
+  }
+}

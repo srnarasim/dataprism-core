@@ -1,0 +1,42 @@
+{
+  "name": "@dataprism/orchestration",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Orchestration layer for DataPrism Core with DuckDB integration",
+  "keywords": ["dataprism", "orchestration", "duckdb", "analytics", "wasm"],
+  "author": "DataPrism Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dataprism/core.git",
+    "directory": "packages/orchestration"
+  },
+  "bugs": {
+    "url": "https://github.com/dataprism/core/issues"
+  },
+  "homepage": "https://dataprism.dev",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest",
+    "lint": "eslint src/**/*.ts",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@duckdb/duckdb-wasm": "^1.28.0",
+    "apache-arrow": "^16.0.0",
+    "@dataprism/plugins": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0",
+    "@vitest/coverage-v8": "^1.0.0",
+    "jsdom": "^23.0.0",
+    "@types/node": "^20.0.0",
+    "eslint": "^8.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0"
+  }
+}
