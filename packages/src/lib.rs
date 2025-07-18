@@ -45,12 +45,14 @@ pub fn get_build_info() -> JsValue {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(target_arch = "wasm32")]
     use super::*;
     use wasm_bindgen_test::*;
 
     wasm_bindgen_test_configure!(run_in_browser);
 
     #[wasm_bindgen_test]
+    #[cfg(target_arch = "wasm32")]
     fn test_memory_manager_allocation() {
         let mut manager = MemoryManager::new();
         let buffer_id = manager.allocate_buffer(1024);
@@ -59,6 +61,7 @@ mod tests {
     }
 
     #[wasm_bindgen_test]
+    #[cfg(target_arch = "wasm32")]
     async fn test_query_engine_basic() {
         let mut engine = QueryEngine::new();
         let test_data = b"test data";
@@ -66,7 +69,8 @@ mod tests {
         match engine.process_data(test_data).await {
             Ok(result) => {
                 assert!(result.row_count > 0);
-                assert!(result.execution_time_ms >= 0);
+                // execution_time_ms is u32, so always >= 0
+                assert!(result.execution_time_ms < 10000); // reasonable upper bound
             }
             Err(e) => panic!("Query processing failed: {:?}", e),
         }
