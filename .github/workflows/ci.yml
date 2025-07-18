@@ -22,13 +22,21 @@ jobs:
             packages/target
           key: ${{ runner.os }}-cargo-${{ hashFiles('packages/Cargo.lock') }}
       - name: Build WASM
-        run: cd packages && wasm-pack build --target web --out-dir pkg
+        run: |
+          cd packages
+          wasm-pack build --target web --out-dir pkg
       - name: Run Rust tests
-        run: cd packages && cargo test
+        run: |
+          cd packages
+          cargo test
       - name: Lint Rust code
-        run: cd packages && cargo clippy -- -D warnings
+        run: |
+          cd packages
+          cargo clippy -- -D warnings
       - name: Format check
-        run: cd packages && cargo fmt -- --check
+        run: |
+          cd packages
+          cargo fmt -- --check
   
   typescript-build:
     runs-on: ubuntu-latest
@@ -72,9 +80,9 @@ jobs:
         run: npm run build
       - name: Verify WASM artifacts
         run: |
-          ls -la packages/pkg/
-          file packages/pkg/dataprism_core_bg.wasm
-          echo "WASM bundle size: $(du -h packages/pkg/dataprism_core_bg.wasm | cut -f1)"
+          ls -la pkg/
+          file pkg/dataprism_core_bg.wasm
+          echo "WASM bundle size: $(du -h pkg/dataprism_core_bg.wasm | cut -f1)"
       - name: Run integration tests
         run: npm run test:integration || echo "Integration tests not implemented yet"
       - name: Performance benchmarks

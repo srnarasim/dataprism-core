@@ -25,6 +25,12 @@ pub struct QueryEngine {
     memory_manager: MemoryManager,
 }
 
+impl Default for QueryEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[wasm_bindgen]
 impl QueryEngine {
     #[wasm_bindgen(constructor)]

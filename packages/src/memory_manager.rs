@@ -7,6 +7,12 @@ pub struct MemoryManager {
     next_id: u32,
 }
 
+impl Default for MemoryManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[wasm_bindgen]
 impl MemoryManager {
     #[wasm_bindgen(constructor)]
