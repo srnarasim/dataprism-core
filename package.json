@@ -11,9 +11,12 @@
     "./orchestration": "./dist/orchestration/index.js"
   },
   "scripts": {
-    "build": "npm run build:wasm && npm run build:orchestration",
+    "build": "npm run build:wasm && npm run build:orchestration && npm run build:bundles",
     "build:wasm": "cd packages && wasm-pack build --target web --out-dir pkg",
     "build:orchestration": "cd packages/orchestration && vite build",
+    "build:bundles": "npm run build:bundle-full && npm run build:bundle-core",
+    "build:bundle-full": "vite build --config vite.config.bundle.ts",
+    "build:bundle-core": "vite build --config vite.config.core.ts",
     "test": "npm run test:rust && npm run test:ts",
     "test:rust": "cd packages && cargo test",
     "test:ts": "vitest run",
@@ -37,7 +40,9 @@
     "vitest": "^1.6.0",
     "eslint": "^8.50.0",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
-    "@typescript-eslint/parser": "^6.21.0"
+    "@typescript-eslint/parser": "^6.21.0",
+    "terser": "^5.24.0",
+    "apache-arrow": "^16.0.0"
   },
   "keywords": [
     "analytics",

@@ -1,0 +1,207 @@
+name: Deploy CDN Bundles to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Install orchestration dependencies
+        run: cd packages/orchestration && npm ci
+        
+      - name: Build WASM
+        run: npm run build:wasm
+        
+      - name: Build orchestration
+        run: npm run build:orchestration
+        
+      - name: Build CDN bundles
+        run: npm run build:bundles
+        
+      - name: Create GitHub Pages deployment
+        run: |
+          mkdir -p cdn-dist
+          
+          # Copy bundled files
+          cp -r dist/bundles/* cdn-dist/
+          
+          # Copy WASM files
+          mkdir -p cdn-dist/wasm
+          cp packages/pkg/* cdn-dist/wasm/
+          
+          # Copy orchestration dist
+          mkdir -p cdn-dist/orchestration
+          cp -r packages/orchestration/dist/* cdn-dist/orchestration/
+          
+          # Create manifest file
+          cat > cdn-dist/manifest.json << 'EOF'
+          {
+            "name": "DataPrism Core CDN",
+            "version": "1.0.0",
+            "bundles": {
+              "full": {
+                "iife": "./dataprism-core.min.js",
+                "umd": "./dataprism-core.umd.js",
+                "es": "./dataprism-core.es.js",
+                "description": "Complete bundle with all dependencies including DuckDB"
+              },
+              "lite": {
+                "iife": "./dataprism-core-lite.min.js",
+                "umd": "./dataprism-core-lite.umd.js", 
+                "es": "./dataprism-core-lite.es.js",
+                "description": "Lightweight bundle, requires DuckDB to be loaded separately"
+              }
+            },
+            "wasm": {
+              "core": "./wasm/dataprism_core.js",
+              "binary": "./wasm/dataprism_core_bg.wasm"
+            },
+            "orchestration": {
+              "es": "./orchestration/index.js",
+              "cjs": "./orchestration/index.cjs"
+            }
+          }
+          EOF
+          
+          # Create index.html
+          cat > cdn-dist/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>DataPrism Core CDN</title>
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <style>
+                  body { 
+                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                      margin: 0; padding: 40px; background: #f8fafc; line-height: 1.6;
+                  }
+                  .container { max-width: 1000px; margin: 0 auto; }
+                  .header { text-align: center; margin-bottom: 40px; }
+                  .header h1 { font-size: 2.5em; margin: 0; color: #1a202c; }
+                  .header p { font-size: 1.1em; color: #718096; margin: 20px 0; }
+                  .section { background: white; border-radius: 8px; padding: 30px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+                  .section h2 { margin-top: 0; color: #2d3748; }
+                  .code { background: #f7fafc; padding: 15px; border-radius: 4px; font-family: 'Monaco', 'Menlo', monospace; font-size: 0.9em; margin: 10px 0; }
+                  .files { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin: 20px 0; }
+                  .file { background: #f7fafc; padding: 15px; border-radius: 4px; }
+                  .file h3 { margin: 0 0 10px 0; color: #3182ce; }
+                  .file a { color: #3182ce; text-decoration: none; }
+                  .file a:hover { text-decoration: underline; }
+                  .badge { background: #38a169; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; }
+              </style>
+          </head>
+          <body>
+              <div class="container">
+                  <div class="header">
+                      <h1>DataPrism Core CDN</h1>
+                      <p>High-performance WebAssembly analytics engine with bundled dependencies</p>
+                  </div>
+                  
+                  <div class="section">
+                      <h2>🚀 Quick Start</h2>
+                      <p>Load DataPrism Core directly from CDN:</p>
+                      
+                      <h3>Complete Bundle (Recommended)</h3>
+                      <div class="code">
+          import { DataPrismEngine } from "https://srnarasim.github.io/dataprism-core/dataprism-core.min.js";
+          
+          const engine = new DataPrismEngine();
+          await engine.initialize();
+                      </div>
+                      
+                      <h3>Lightweight Bundle</h3>
+                      <div class="code">
+          // Load DuckDB separately for smaller bundle size
+          import { DataPrismEngine } from "https://srnarasim.github.io/dataprism-core/dataprism-core-lite.min.js";
+                      </div>
+                  </div>
+                  
+                  <div class="section">
+                      <h2>📦 Available Bundles</h2>
+                      <div class="files">
+                          <div class="file">
+                              <h3>Complete Bundle <span class="badge">~466KB</span></h3>
+                              <p>Includes all dependencies (DuckDB, Arrow)</p>
+                              <a href="./dataprism-core.min.js">dataprism-core.min.js</a><br>
+                              <a href="./dataprism-core.umd.js">dataprism-core.umd.js</a>
+                          </div>
+                          <div class="file">
+                              <h3>Lightweight Bundle <span class="badge">~270KB</span></h3>
+                              <p>Requires DuckDB to be loaded separately</p>
+                              <a href="./dataprism-core-lite.min.js">dataprism-core-lite.min.js</a><br>
+                              <a href="./dataprism-core-lite.umd.js">dataprism-core-lite.umd.js</a>
+                          </div>
+                      </div>
+                  </div>
+                  
+                  <div class="section">
+                      <h2>🔧 Components</h2>
+                      <div class="files">
+                          <div class="file">
+                              <h3>WASM Core Engine</h3>
+                              <a href="./wasm/dataprism_core.js">dataprism_core.js</a><br>
+                              <a href="./wasm/dataprism_core_bg.wasm">dataprism_core_bg.wasm</a>
+                          </div>
+                          <div class="file">
+                              <h3>Orchestration Layer</h3>
+                              <a href="./orchestration/index.js">index.js</a><br>
+                              <a href="./orchestration/index.cjs">index.cjs</a>
+                          </div>
+                          <div class="file">
+                              <h3>Manifest</h3>
+                              <a href="./manifest.json">manifest.json</a>
+                          </div>
+                      </div>
+                  </div>
+                  
+                  <div class="section">
+                      <h2>📚 Resources</h2>
+                      <p>
+                          <a href="https://github.com/srnarasim/dataprism-core">📁 Source Code</a> |
+                          <a href="https://srnarasim.github.io/dataprism-apps/">📖 Documentation</a> |
+                          <a href="https://srnarasim.github.io/dataprism-apps/demo/">🚀 Live Demo</a>
+                      </p>
+                  </div>
+              </div>
+          </body>
+          </html>
+          EOF
+          
+          # Create .nojekyll to ensure all files are served
+          touch cdn-dist/.nojekyll
+          
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+        
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './cdn-dist'
+          
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
