@@ -36,7 +36,7 @@ export class DataPrismEngine {
 
   constructor(config: Partial<DataPrismConfig> = {}) {
     this.config = {
-      enableWasmOptimizations: true,
+      enableWasmOptimizations: false, // Disable WASM temporarily while fixing bundle issues
       maxMemoryMB: 4096,
       queryTimeoutMs: 30000,
       logLevel: "info",
@@ -101,6 +101,23 @@ export class DataPrismEngine {
     }
   }
 
+  private detectCDNBase(): string {
+    if (typeof window === "undefined") return "";
+    
+    // Try to detect from current script tag
+    const scripts = Array.from(document.getElementsByTagName('script'));
+    const currentScript = scripts.find(script => 
+      script.src && script.src.includes('dataprism')
+    );
+    
+    if (currentScript) {
+      const url = new URL(currentScript.src);
+      return `${url.protocol}//${url.host}${url.pathname.replace(/\/[^\/]*$/, '')}`;
+    }
+    
+    return "";
+  }
+
   private async initializeWasm(): Promise<void> {
     // Skip WASM initialization during build process
     if (typeof window === "undefined") {
@@ -108,9 +125,31 @@ export class DataPrismEngine {
     }
 
     try {
-      // Dynamic import the WASM module - construct path dynamically to avoid TS resolution
-      const corePackageName = "@dataprism/core";
-      const wasmModule = await import(/* @vite-ignore */ corePackageName);
+      // Try to load WASM module - construct paths dynamically to avoid build-time resolution
+      let wasmModule;
+      const cdnBase = this.detectCDNBase();
+      
+      // Try multiple potential WASM module locations
+      const possiblePaths = [
+        `${cdnBase}/wasm/dataprism_core.js`,
+        `/wasm/dataprism_core.js`,
+        `./wasm/dataprism_core.js`
+      ].filter(path => path && !path.startsWith('/wasm/dataprism_core.js')); // Avoid duplicate relative path
+      
+      let lastError;
+      for (const wasmPath of possiblePaths) {
+        try {
+          wasmModule = await import(/* @vite-ignore */ wasmPath);
+          break;
+        } catch (error) {
+          lastError = error;
+          continue;
+        }
+      }
+      
+      if (!wasmModule) {
+        throw new Error(`Failed to load WASM module from any location. Last error: ${lastError}`);
+      }
 
       // Try to initialize with public WASM file first, then fallback
       try {

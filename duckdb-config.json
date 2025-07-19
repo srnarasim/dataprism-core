@@ -1,0 +1,28 @@
+{
+  "baseUrl": "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@latest/dist",
+  "hybrid": true,
+  "bundles": {
+    "eh": {
+      "mainModule": "duckdb-eh.js",
+      "mainWorker": "duckdb-browser-eh.worker.js"
+    },
+    "coi": {
+      "mainModule": "duckdb-coi.js", 
+      "mainWorker": "duckdb-browser-coi.worker.js",
+      "pthreadWorker": "duckdb-browser-coi.pthread.worker.js"
+    }
+  },
+  "workers": {
+    "eh": "duckdb-browser-eh.worker.js",
+    "coi": "duckdb-browser-coi.worker.js",
+    "pthread": "duckdb-browser-coi.pthread.worker.js"
+  },
+  "assets": {
+    "wasm_eh": "duckdb-eh.wasm",
+    "wasm_coi": "duckdb-coi.wasm"
+  },
+  "fallback": {
+    "strategy": "jsdelivr",
+    "note": "Falls back to JSDelivr CDN for DuckDB WASM files"
+  }
+}

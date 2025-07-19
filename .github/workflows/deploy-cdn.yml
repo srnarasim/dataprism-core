@@ -59,6 +59,9 @@ jobs:
           # Copy bundled files
           cp -r dist/bundles/* cdn-dist/
           
+          # Copy DuckDB config
+          cp duckdb-config.json cdn-dist/
+          
           # Debug: List what was copied
           echo "Files copied to cdn-dist:"
           ls -la cdn-dist/
