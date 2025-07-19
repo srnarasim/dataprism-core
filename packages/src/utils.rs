@@ -54,8 +54,8 @@ pub fn validate_input_data(data: &[u8]) -> Result<bool, JsValue> {
 #[wasm_bindgen]
 pub fn log_performance_metric(operation: &str, duration_ms: f64, memory_bytes: u32) {
     web_sys::console::log_3(
-        &format!("Performance: {}", operation).into(),
-        &format!("Duration: {}ms", duration_ms).into(),
+        &format!("Performance: {operation}").into(),
+        &format!("Duration: {duration_ms}ms").into(),
         &format!("Memory: {}MB", memory_bytes as f64 / 1_000_000.0).into(),
     );
 }
