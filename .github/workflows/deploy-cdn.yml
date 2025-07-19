@@ -52,8 +52,16 @@ jobs:
         run: |
           mkdir -p cdn-dist
           
+          # Debug: List what's in dist/bundles
+          echo "Files in dist/bundles:"
+          ls -la dist/bundles/
+          
           # Copy bundled files
           cp -r dist/bundles/* cdn-dist/
+          
+          # Debug: List what was copied
+          echo "Files copied to cdn-dist:"
+          ls -la cdn-dist/
           
           # Copy WASM files
           mkdir -p cdn-dist/wasm
