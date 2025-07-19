@@ -104,18 +104,16 @@ export class DataPrismEngine {
   private detectCDNBase(): string {
     if (typeof window === "undefined") return "";
     
-    // Try to detect from current script tag
-    const scripts = Array.from(document.getElementsByTagName('script'));
-    const currentScript = scripts.find(script => 
-      script.src && script.src.includes('dataprism')
-    );
+    // Always use the DataPrism Core CDN for WASM files
+    // This ensures we load from the correct location regardless of where the script is hosted
+    const defaultCdnBase = 'https://srnarasim.github.io/dataprism-core';
     
-    if (currentScript) {
-      const url = new URL(currentScript.src);
-      return `${url.protocol}//${url.host}${url.pathname.replace(/\/[^\/]*$/, '')}`;
+    // Try to detect if we're running locally for development
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return ''; // Use relative paths for local development
     }
     
-    return "";
+    return defaultCdnBase;
   }
 
   private async initializeWasm(): Promise<void> {
@@ -151,9 +149,10 @@ export class DataPrismEngine {
         throw new Error(`Failed to load WASM module from any location. Last error: ${lastError}`);
       }
 
-      // Try to initialize with public WASM file first, then fallback
+      // Try to initialize with CDN WASM file first, then fallback
       try {
-        await wasmModule.default("/wasm/dataprism_core_bg.wasm");
+        const wasmBinaryPath = `${cdnBase}/wasm/dataprism_core_bg.wasm`;
+        await wasmModule.default(wasmBinaryPath);
       } catch (error) {
         // Fallback to default initialization
         await wasmModule.default();
