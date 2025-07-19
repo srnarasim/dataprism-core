@@ -49,6 +49,8 @@ jobs:
           cache: 'npm'
       - name: Install dependencies
         run: npm ci
+      - name: Install orchestration dependencies
+        run: cd packages/orchestration && npm ci
       - name: Build orchestration
         run: npm run build:orchestration
       - name: Run TypeScript tests
@@ -76,13 +78,15 @@ jobs:
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
       - name: Install dependencies
         run: npm ci
+      - name: Install orchestration dependencies
+        run: cd packages/orchestration && npm ci
       - name: Build all
         run: npm run build
       - name: Verify WASM artifacts
         run: |
-          ls -la pkg/
-          file pkg/dataprism_core_bg.wasm
-          echo "WASM bundle size: $(du -h pkg/dataprism_core_bg.wasm | cut -f1)"
+          ls -la packages/pkg/
+          file packages/pkg/dataprism_core_bg.wasm
+          echo "WASM bundle size: $(du -h packages/pkg/dataprism_core_bg.wasm | cut -f1)"
       - name: Run integration tests
         run: npm run test:integration || echo "Integration tests not implemented yet"
       - name: Performance benchmarks
