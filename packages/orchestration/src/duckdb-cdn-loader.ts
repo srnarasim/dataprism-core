@@ -31,23 +31,21 @@ export class DuckDBCDNLoader {
   }
 
   /**
-   * Detect the CDN base URL from the current script location
+   * Detect the CDN base URL from the current script location or use default
    */
   private detectCDNBaseUrl(): string {
     if (typeof window === 'undefined') return '';
     
-    // Try to detect from current script tag
-    const scripts = Array.from(document.getElementsByTagName('script'));
-    const currentScript = scripts.find(script => 
-      script.src && script.src.includes('dataprism')
-    );
+    // Always use the DataPrism Core CDN for DuckDB dependencies
+    // This ensures we load from the correct location regardless of where the script is hosted
+    const defaultCdnBase = 'https://srnarasim.github.io/dataprism-core';
     
-    if (currentScript) {
-      const url = new URL(currentScript.src);
-      return `${url.protocol}//${url.host}${url.pathname.replace(/\/[^\/]*$/, '')}`;
+    // Try to detect if we're running locally for development
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return ''; // Use relative paths for local development
     }
     
-    return '';
+    return defaultCdnBase;
   }
 
   /**
