@@ -18,7 +18,7 @@ interface WasmModule {
 }
 
 export class DataPrismEngine {
-  private duckdb: DuckDBManager;
+  private duckdb: DuckDBManager | null = null;
   private wasmEngine: any = null;
   private wasmModule: WasmModule | null = null;
   private config: DataPrismConfig;
@@ -42,13 +42,16 @@ export class DataPrismEngine {
       logLevel: "info",
       ...config,
     };
-    this.duckdb = new DuckDBManager();
+    // DuckDB manager will be created during initialization to avoid sync issues
   }
 
   async initialize(): Promise<void> {
     if (this.initialized) return;
 
     try {
+      // Create DuckDB manager during initialization to avoid sync issues
+      this.duckdb = new DuckDBManager();
+      
       // Initialize dependencies in parallel for better performance
       const initPromises = [];
 
@@ -56,7 +59,7 @@ export class DataPrismEngine {
       initPromises.push(
         this.dependencyRegistry.loadDependency(
           "duckdb",
-          () => this.duckdb.initialize(),
+          () => this.duckdb!.initialize(),
           { timeout: 30000, maxRetries: 3 }
         )
       );
@@ -138,6 +141,9 @@ export class DataPrismEngine {
 
     try {
       // Route query through DuckDB for analytical processing
+      if (!this.duckdb) {
+        throw new Error("Engine not initialized - call initialize() first");
+      }
       const result = await this.duckdb.query(sql);
 
       // Apply WASM optimizations if enabled and beneficial
@@ -166,6 +172,9 @@ export class DataPrismEngine {
     }
 
     try {
+      if (!this.duckdb) {
+        throw new Error("Engine not initialized - call initialize() first");
+      }
       await this.duckdb.insertData(tableName, data);
       this.log("info", `Loaded ${data.length} rows into table ${tableName}`);
     } catch (error) {
@@ -182,6 +191,9 @@ export class DataPrismEngine {
       throw new Error("Engine not initialized");
     }
 
+    if (!this.duckdb) {
+      throw new Error("Engine not initialized - call initialize() first");
+    }
     await this.duckdb.createTable(tableName, schema);
   }
 
@@ -190,6 +202,9 @@ export class DataPrismEngine {
       throw new Error("Engine not initialized");
     }
 
+    if (!this.duckdb) {
+      throw new Error("Engine not initialized - call initialize() first");
+    }
     return await this.duckdb.listTables();
   }
 
@@ -198,6 +213,9 @@ export class DataPrismEngine {
       throw new Error("Engine not initialized");
     }
 
+    if (!this.duckdb) {
+      throw new Error("Engine not initialized - call initialize() first");
+    }
     return await this.duckdb.getTableInfo(tableName);
   }
 
@@ -267,7 +285,7 @@ export class DataPrismEngine {
     return {
       initialized: this.initialized,
       wasmModuleLoaded: !!this.wasmModule,
-      duckdbConnected: this.duckdb.isInitialized(),
+      duckdbConnected: this.duckdb?.isInitialized() ?? false,
       memoryUsage: this.getMemoryUsage(),
       uptime: Date.now() - this.startTime,
       dependencies: this.getDependencyStatus(),
@@ -381,7 +399,9 @@ export class DataPrismEngine {
   }
 
   async close(): Promise<void> {
-    await this.duckdb.close();
+    if (this.duckdb) {
+      await this.duckdb.close();
+    }
     this.wasmEngine = null;
     this.wasmModule = null;
     this.initialized = false;

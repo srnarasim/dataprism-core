@@ -19,17 +19,7 @@ export default defineConfig({
         globals: {},
       },
     },
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: false, // Keep console for debugging
-        drop_debugger: true,
-      },
-      mangle: {
-        keep_classnames: true, // Preserve class names for better debugging
-        keep_fnames: true,     // Preserve function names
-      },
-    },
+    minify: false, // Disable minification temporarily for debugging
     sourcemap: true,
   },
   // Add optimization for large dependencies
