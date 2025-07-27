@@ -461,6 +461,11 @@ LIMIT 10</textarea>
             statusEl.textContent = message;
         }
 
+        // Helper function to handle BigInt serialization
+        function replaceBigIntForJSON(key, value) {
+            return typeof value === 'bigint' ? value.toString() : value;
+        }
+
         function displayResults(elementId, data, title = '') {
             const element = document.getElementById(elementId);
             const timestamp = new Date().toLocaleTimeString();
@@ -471,7 +476,7 @@ LIMIT 10</textarea>
             }
             
             if (typeof data === 'object') {
-                html += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                html += `<pre>${JSON.stringify(data, replaceBigIntForJSON, 2)}</pre>`;
             } else {
                 html += `<div>${data}</div>`;
             }

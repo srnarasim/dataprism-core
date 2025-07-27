@@ -58,7 +58,7 @@ export class DuckDBManager {
       const result = await this.connection.query(sql);
       const endTime = performance.now();
 
-      const data = result.toArray().map((row) => row.toJSON()) as T[];
+      const data = result.toArray().map((row) => this.convertBigIntsToString(row.toJSON())) as T[];
 
       return {
         data,
@@ -189,5 +189,29 @@ export class DuckDBManager {
 
   async getConnection(): Promise<AsyncDuckDBConnection | null> {
     return this.connection;
+  }
+
+  private convertBigIntsToString(obj: any): any {
+    if (obj === null || obj === undefined) {
+      return obj;
+    }
+    
+    if (typeof obj === 'bigint') {
+      return obj.toString();
+    }
+    
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.convertBigIntsToString(item));
+    }
+    
+    if (typeof obj === 'object') {
+      const converted: any = {};
+      for (const [key, value] of Object.entries(obj)) {
+        converted[key] = this.convertBigIntsToString(value);
+      }
+      return converted;
+    }
+    
+    return obj;
   }
 }
