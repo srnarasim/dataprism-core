@@ -690,15 +690,37 @@ LIMIT 10</textarea>
             if (!tableName) return;
 
             try {
-                const duckdbCloud = engine.duckdbCloudService;
-                if (!duckdbCloud) {
-                    throw new Error('DuckDB cloud service not available. Check console for initialization errors.');
-                }
+                // Try direct SQL query first (works with both registered tables and views)
+                console.log('Querying table using direct SQL');
+                const sql = `SELECT * FROM ${tableName} LIMIT 10`;
+                console.log('Executing SQL:', sql);
                 
-                const data = await duckdbCloud.queryCloudTable(tableName);
-                displayResults('duckdb-results', { tableName, rowCount: data.length, data: data.slice(0, 5) }, 'Query Results');
-            } catch (error) {
-                displayError('duckdb-results', error, 'Query Error');
+                const result = await engine.query(sql);
+                
+                displayResults('duckdb-results', { 
+                    tableName, 
+                    method: 'Direct DuckDB Query',
+                    sql: sql,
+                    rowCount: result.data.length, 
+                    data: result.data,
+                    metadata: result.metadata
+                }, 'Query Results (Direct SQL)');
+                
+            } catch (directError) {
+                console.warn('Direct SQL query failed, trying cloud service:', directError.message);
+                
+                try {
+                    // Fallback to cloud service if available
+                    const duckdbCloud = engine.duckdbCloudService;
+                    if (!duckdbCloud) {
+                        throw new Error('DuckDB cloud service not available and direct SQL failed.');
+                    }
+                    
+                    const data = await duckdbCloud.queryCloudTable(tableName);
+                    displayResults('duckdb-results', { tableName, rowCount: data.length, data: data.slice(0, 5) }, 'Query Results (Cloud Service)');
+                } catch (cloudError) {
+                    displayError('duckdb-results', new Error(`Both methods failed. Direct SQL: ${directError.message}. Cloud service: ${cloudError.message}`), 'Query Error');
+                }
             }
         };
 
