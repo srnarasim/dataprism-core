@@ -104,7 +104,7 @@
 <body>
     <h1>DataPrism Cloud Storage Demo</h1>
     <p>Demonstration of CORS-aware cloud storage integration with automatic proxy fallback using real NYC taxi trip data (50MB Parquet file from CloudFlare R2).</p>
-    <p><strong>Engine Loading:</strong> This demo loads the DataPrism engine directly from CDN at <code>https://srnarasim.github.io/dataprism-core/bundles/dataprism-core.es.js</code> with automatic fallback to mock implementation for resilience.</p>
+    <p><strong>Engine Loading:</strong> This demo attempts to load the DataPrism engine from CDN (ES module, then UMD fallback) with automatic fallback to mock implementation for resilience. Check browser console for loading details.</p>
     
     <div id="engine-status" class="status loading">Initializing Engine...</div>
     
@@ -199,8 +199,31 @@ LIMIT 10</textarea>
             try {
                 console.log('Loading DataPrism Engine from CDN...');
                 
-                // Load DataPrismEngine from CDN
-                const { DataPrismEngine } = await import('https://srnarasim.github.io/dataprism-core/bundles/dataprism-core.es.js');
+                // Load DataPrismEngine from CDN - try multiple bundle types
+                let DataPrismEngine;
+                try {
+                    // Try ES module first
+                    const esModule = await import('https://srnarasim.github.io/dataprism-core/bundles/dataprism-core.es.js');
+                    DataPrismEngine = esModule.DataPrismEngine;
+                } catch (esError) {
+                    console.warn('ES module failed, trying UMD bundle:', esError.message);
+                    updateEngineStatus('loading', 'ES module failed, trying UMD...');
+                    // Fallback to UMD bundle via script tag
+                    await new Promise((resolve, reject) => {
+                        const script = document.createElement('script');
+                        script.src = 'https://srnarasim.github.io/dataprism-core/bundles/dataprism-core.umd.js';
+                        script.onload = () => {
+                            if (window.DataPrismCore && window.DataPrismCore.DataPrismEngine) {
+                                DataPrismEngine = window.DataPrismCore.DataPrismEngine;
+                                resolve();
+                            } else {
+                                reject(new Error('UMD bundle did not expose DataPrismEngine'));
+                            }
+                        };
+                        script.onerror = () => reject(new Error('Failed to load UMD bundle'));
+                        document.head.appendChild(script);
+                    });
+                }
                 
                 // Create engine with real configuration
                 const config = {
