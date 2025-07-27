@@ -104,7 +104,7 @@
 <body>
     <h1>DataPrism Cloud Storage Demo</h1>
     <p>Demonstration of CORS-aware cloud storage integration with automatic proxy fallback using real NYC taxi trip data (50MB Parquet file from CloudFlare R2).</p>
-    <p><strong>Engine Loading:</strong> This demo attempts to load the DataPrism engine from CDN (ES module, then UMD fallback) with automatic fallback to mock implementation for resilience. Check browser console for loading details.</p>
+    <p><strong>Engine Loading:</strong> This demo loads the DataPrism engine from CDN (<code>https://srnarasim.github.io/dataprism-core/dataprism-core.min.js</code>) as a UMD bundle via script tag, with automatic fallback to mock implementation for resilience. Check browser console for loading details.</p>
     
     <div id="engine-status" class="status loading">Initializing Engine...</div>
     
@@ -152,7 +152,7 @@
                 <select id="cors-handling">
                     <option value="auto">Auto</option>
                     <option value="direct">Direct</option>
-                    <option value="proxy">Proxy</option>
+                    <option value="proxy" selected>Proxy (Recommended for R2)</option>
                 </select>
             </div>
             <button onclick="registerCloudTable()">Register Table</button>
@@ -199,31 +199,37 @@ LIMIT 10</textarea>
             try {
                 console.log('Loading DataPrism Engine from CDN...');
                 
-                // Load DataPrismEngine from CDN - try multiple bundle types
+                // Load DataPrismEngine from CDN using script tag (UMD bundle)
                 let DataPrismEngine;
-                try {
-                    // Try ES module first
-                    const esModule = await import('https://srnarasim.github.io/dataprism-core/bundles/dataprism-core.es.js');
-                    DataPrismEngine = esModule.DataPrismEngine;
-                } catch (esError) {
-                    console.warn('ES module failed, trying UMD bundle:', esError.message);
-                    updateEngineStatus('loading', 'ES module failed, trying UMD...');
-                    // Fallback to UMD bundle via script tag
-                    await new Promise((resolve, reject) => {
-                        const script = document.createElement('script');
-                        script.src = 'https://srnarasim.github.io/dataprism-core/bundles/dataprism-core.umd.js';
-                        script.onload = () => {
-                            if (window.DataPrismCore && window.DataPrismCore.DataPrismEngine) {
-                                DataPrismEngine = window.DataPrismCore.DataPrismEngine;
-                                resolve();
-                            } else {
-                                reject(new Error('UMD bundle did not expose DataPrismEngine'));
-                            }
-                        };
-                        script.onerror = () => reject(new Error('Failed to load UMD bundle'));
-                        document.head.appendChild(script);
-                    });
-                }
+                console.log('Loading DataPrism Engine UMD bundle from CDN...');
+                
+                await new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = 'https://srnarasim.github.io/dataprism-core/dataprism-core.min.js';
+                    script.onload = () => {
+                        console.log('UMD bundle loaded, checking for DataPrismEngine...');
+                        console.log('Available on window:', Object.keys(window).filter(k => k.includes('DataPrism') || k.includes('Engine')));
+                        
+                        if (window.DataPrismEngine) {
+                            DataPrismEngine = window.DataPrismEngine;
+                            console.log('Found DataPrismEngine on window');
+                            resolve();
+                        } else if (window.DataPrism && window.DataPrism.DataPrismEngine) {
+                            DataPrismEngine = window.DataPrism.DataPrismEngine;
+                            console.log('Found DataPrismEngine in DataPrism namespace');
+                            resolve();
+                        } else if (window.DataPrismCore && window.DataPrismCore.DataPrismEngine) {
+                            DataPrismEngine = window.DataPrismCore.DataPrismEngine;
+                            console.log('Found DataPrismEngine in DataPrismCore namespace');
+                            resolve();
+                        } else {
+                            console.error('DataPrismEngine not found. Available window properties:', Object.keys(window).slice(-20));
+                            reject(new Error('UMD bundle did not expose DataPrismEngine'));
+                        }
+                    };
+                    script.onerror = () => reject(new Error('Failed to load UMD bundle'));
+                    document.head.appendChild(script);
+                });
                 
                 // Create engine with real configuration
                 const config = {
@@ -232,13 +238,14 @@ LIMIT 10</textarea>
                     queryTimeoutMs: 30000,
                     logLevel: 'info',
                     corsConfig: {
-                        strategy: 'auto',
+                        strategy: 'proxy', // Use proxy for CloudFlare R2 to handle CORS headers
                         cacheTimeout: 300000,
                         retryAttempts: 3
                     },
                     cloudProviders: {
                         'cloudflare-r2': {
-                            authMethod: 'api-key'
+                            authMethod: 'api-key',
+                            useProxy: true // Force proxy usage for R2
                         }
                     }
                 };
@@ -248,10 +255,13 @@ LIMIT 10</textarea>
                 
                 console.log('DataPrism Engine initialized successfully');
                 
-                // Verify services are available
-                if (!engine.cloudStorageService || !engine.httpClientService) {
-                    throw new Error('Cloud storage services not properly initialized');
-                }
+                // Check final service availability
+                console.log('Engine initialized. Service availability:');
+                console.log('- httpClientService:', !!engine.httpClientService);
+                console.log('- cloudStorageService:', !!engine.cloudStorageService);
+                console.log('- duckdbCloudService:', !!engine.duckdbCloudService);
+                console.log('- Engine status:', engine.getStatus());
+                console.log('- Dependency status:', engine.getDependencyStatus());
                 
                 engineReady = true;
                 updateEngineStatus('ready', 'Engine Ready');
@@ -492,8 +502,13 @@ LIMIT 10</textarea>
             if (!url) return;
 
             try {
-                const result = await engine.httpClientService.testCorsSupport(url);
-                const provider = engine.httpClientService.detectProvider(url);
+                const httpClient = engine.httpClientService;
+                if (!httpClient) {
+                    throw new Error('HTTP client service not available');
+                }
+                
+                const result = await httpClient.testCorsSupport(url);
+                const provider = httpClient.detectProvider(url);
                 displayResults('cors-results', { ...result, detectedProvider: provider }, 'CORS Support Test');
             } catch (error) {
                 displayError('cors-results', error, 'CORS Test Error');
@@ -507,7 +522,12 @@ LIMIT 10</textarea>
             if (!url) return;
 
             try {
-                const response = await engine.httpClientService.fetchWithCorsHandling(url);
+                const httpClient = engine.httpClientService;
+                if (!httpClient) {
+                    throw new Error('HTTP client service not available');
+                }
+                
+                const response = await httpClient.fetchWithCorsHandling(url);
                 const text = await response.text();
                 const preview = text.length > 500 ? text.substring(0, 500) + '...' : text;
                 
@@ -528,7 +548,12 @@ LIMIT 10</textarea>
             if (!url) return;
 
             try {
-                const schema = await engine.cloudStorageService.getFileSchema(url);
+                const cloudStorage = engine.cloudStorageService;
+                if (!cloudStorage) {
+                    throw new Error('Cloud storage service not available');
+                }
+                
+                const schema = await cloudStorage.getFileSchema(url);
                 displayResults('schema-results', schema, 'File Schema');
             } catch (error) {
                 displayError('schema-results', error, 'Schema Detection Error');
@@ -542,7 +567,12 @@ LIMIT 10</textarea>
             if (!url) return;
 
             try {
-                const file = await engine.cloudStorageService.getFile(url);
+                const cloudStorage = engine.cloudStorageService;
+                if (!cloudStorage) {
+                    throw new Error('Cloud storage service not available');
+                }
+                
+                const file = await cloudStorage.getFile(url);
                 displayResults('schema-results', file.metadata, 'File Metadata');
             } catch (error) {
                 displayError('schema-results', error, 'Metadata Error');
@@ -559,7 +589,12 @@ LIMIT 10</textarea>
             if (!tableName || !tableUrl) return;
 
             try {
-                const result = await engine.duckdbCloudService.registerCloudTable(
+                const duckdbCloud = engine.duckdbCloudService;
+                if (!duckdbCloud) {
+                    throw new Error('DuckDB cloud service not available. Check console for initialization errors.');
+                }
+                
+                const result = await duckdbCloud.registerCloudTable(
                     tableName, 
                     tableUrl, 
                     { corsHandling }
@@ -577,7 +612,12 @@ LIMIT 10</textarea>
             if (!tableName) return;
 
             try {
-                const data = await engine.duckdbCloudService.queryCloudTable(tableName);
+                const duckdbCloud = engine.duckdbCloudService;
+                if (!duckdbCloud) {
+                    throw new Error('DuckDB cloud service not available. Check console for initialization errors.');
+                }
+                
+                const data = await duckdbCloud.queryCloudTable(tableName);
                 displayResults('duckdb-results', { tableName, rowCount: data.length, data: data.slice(0, 5) }, 'Query Results');
             } catch (error) {
                 displayError('duckdb-results', error, 'Query Error');
@@ -587,30 +627,79 @@ LIMIT 10</textarea>
         window.getCacheStats = function() {
             if (!engineReady) return;
 
-            const stats = {
-                schemaCache: engine.schemaCacheService.getStats(),
-                httpCache: engine.httpCacheService.getStats(),
-                queryCache: engine.queryCacheService.getStats()
-            };
-            
-            displayResults('performance-results', stats, 'Cache Statistics');
+            try {
+                const stats = {};
+                
+                if (engine.schemaCacheService) {
+                    stats.schemaCache = engine.schemaCacheService.getStats();
+                }
+                if (engine.httpCacheService) {
+                    stats.httpCache = engine.httpCacheService.getStats();
+                }
+                if (engine.queryCacheService) {
+                    stats.queryCache = engine.queryCacheService.getStats();
+                }
+                
+                if (Object.keys(stats).length === 0) {
+                    stats.message = 'No cache services available';
+                }
+                
+                displayResults('performance-results', stats, 'Cache Statistics');
+            } catch (error) {
+                displayError('performance-results', error, 'Cache Stats Error');
+            }
         };
 
         window.getPerformanceReport = function() {
             if (!engineReady) return;
 
-            const report = engine.performanceOptimizerService.getPerformanceReport();
-            displayResults('performance-results', report, 'Performance Report');
+            try {
+                if (engine.performanceOptimizerService) {
+                    const report = engine.performanceOptimizerService.getPerformanceReport();
+                    displayResults('performance-results', report, 'Performance Report');
+                } else {
+                    // Fallback to engine metrics
+                    const metrics = engine.getMetrics();
+                    const status = engine.getStatus();
+                    const report = {
+                        metrics,
+                        status,
+                        message: 'Performance optimizer service not available, showing basic metrics'
+                    };
+                    displayResults('performance-results', report, 'Performance Report');
+                }
+            } catch (error) {
+                displayError('performance-results', error, 'Performance Report Error');
+            }
         };
 
         window.clearAllCaches = function() {
             if (!engineReady) return;
 
-            engine.schemaCacheService.clear();
-            engine.httpCacheService.clear();
-            engine.queryCacheService.clear();
-            
-            displayResults('performance-results', { message: 'All caches cleared successfully' }, 'Cache Management');
+            try {
+                const cleared = [];
+                
+                if (engine.schemaCacheService) {
+                    engine.schemaCacheService.clear();
+                    cleared.push('schema cache');
+                }
+                if (engine.httpCacheService) {
+                    engine.httpCacheService.clear();
+                    cleared.push('HTTP cache');
+                }
+                if (engine.queryCacheService) {
+                    engine.queryCacheService.clear();
+                    cleared.push('query cache');
+                }
+                
+                const message = cleared.length > 0 ? 
+                    `Cleared: ${cleared.join(', ')}` : 
+                    'No cache services available to clear';
+                
+                displayResults('performance-results', { message, clearedCaches: cleared }, 'Cache Management');
+            } catch (error) {
+                displayError('performance-results', error, 'Cache Clear Error');
+            }
         };
 
         window.executeQuery = async function() {

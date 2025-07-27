@@ -475,7 +475,8 @@ export class DataPrismEngine {
           corsHeaders: {
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-            'Access-Control-Allow-Headers': 'Range, Content-Type, Authorization'
+            'Access-Control-Allow-Headers': 'Range, Content-Type, Authorization',
+            'Access-Control-Expose-Headers': 'Content-Range, Content-Length, Accept-Ranges, ETag, Last-Modified'
           }
         }
       };
