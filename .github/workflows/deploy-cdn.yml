@@ -1,8 +1,9 @@
 name: Deploy CDN Bundles to GitHub Pages
 
 on:
-  push:
-    branches: [ main ]
+  # Disabled to avoid conflict with deploy-gh-pages.yml
+  # push:
+  #   branches: [ main ]
   workflow_dispatch:
 
 permissions:

@@ -60,8 +60,12 @@ jobs:
       run: |
         mkdir -p gh-pages
         
-        # Copy CDN bundles
+        # Copy CDN bundles to both bundles/ and root for compatibility
         cp -r dist/bundles gh-pages/bundles
+        cp dist/bundles/* gh-pages/ || echo "No bundle files to copy to root"
+        
+        # Copy DuckDB configuration
+        cp duckdb-config.json gh-pages/
         
         # Copy WASM files
         mkdir -p gh-pages/wasm
