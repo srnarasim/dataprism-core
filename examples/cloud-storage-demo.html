@@ -157,6 +157,8 @@
             </div>
             <button onclick="registerCloudTable()">Register Table</button>
             <button onclick="queryCloudTable()">Query Table</button>
+            <button onclick="listTables()" style="background: #28a745;">List All Tables</button>
+            <button onclick="clearDemo()" style="background: #dc3545; color: white;">Clear/Reset Demo</button>
             <div id="duckdb-results" class="results"></div>
         </div>
 
@@ -647,27 +649,43 @@ LIMIT 10</textarea>
             if (!tableName || !tableUrl) return;
 
             try {
-                // Try direct DuckDB SQL approach first (most reliable for Parquet files)
                 console.log('Attempting direct DuckDB registration for table:', tableName);
                 
-                // Use DuckDB's built-in read_parquet function which handles HTTP directly
+                // First test if we can access the Parquet file
+                console.log('Testing Parquet file access...');
+                const testSql = `SELECT COUNT(*) as row_count FROM read_parquet('${tableUrl}')`;
+                console.log('Executing test SQL:', testSql);
+                
+                const testResult = await engine.query(testSql);
+                console.log('Parquet file accessible, row count:', testResult.data[0]?.row_count);
+                
+                // Now create the view
                 const sql = `CREATE OR REPLACE VIEW ${tableName} AS SELECT * FROM read_parquet('${tableUrl}')`;
-                console.log('Executing SQL:', sql);
+                console.log('Creating view with SQL:', sql);
                 
                 const result = await engine.query(sql);
+                console.log('View creation result:', result);
+                
+                // Verify the view was created by querying it
+                const verifyResult = await engine.query(`SELECT COUNT(*) as count FROM ${tableName}`);
+                console.log('View verification result:', verifyResult);
                 
                 displayResults('duckdb-results', { 
                     tableName, 
                     tableUrl, 
                     corsHandling,
                     method: 'Direct DuckDB SQL',
-                    sql: sql,
+                    testSql: testSql,
+                    createSql: sql,
+                    rowCount: testResult.data[0]?.row_count,
+                    viewRowCount: verifyResult.data[0]?.count,
                     success: true,
-                    message: 'Table registered successfully using DuckDB read_parquet'
+                    message: 'Table registered and verified successfully'
                 }, 'Table Registration (Direct SQL)');
                 
             } catch (directError) {
-                console.warn('Direct SQL approach failed, trying cloud service:', directError.message);
+                console.error('Direct SQL approach failed:', directError);
+                displayError('duckdb-results', directError, 'Registration Error (Direct SQL)');
                 
                 try {
                     // Fallback to cloud service if available
@@ -676,6 +694,7 @@ LIMIT 10</textarea>
                         throw new Error('DuckDB cloud service not available and direct SQL failed.');
                     }
                     
+                    console.log('Trying cloud service fallback...');
                     const result = await duckdbCloud.registerCloudTable(
                         tableName, 
                         tableUrl, 
@@ -683,6 +702,7 @@ LIMIT 10</textarea>
                     );
                     displayResults('duckdb-results', { tableName, tableUrl, corsHandling, result }, 'Table Registration (Cloud Service)');
                 } catch (cloudError) {
+                    console.error('Cloud service also failed:', cloudError);
                     displayError('duckdb-results', new Error(`Both methods failed. Direct SQL: ${directError.message}. Cloud service: ${cloudError.message}`), 'Registration Error');
                 }
             }
@@ -695,7 +715,17 @@ LIMIT 10</textarea>
             if (!tableName) return;
 
             try {
-                // Try direct SQL query first (works with both registered tables and views)
+                // First check if the table/view exists
+                console.log('Checking if table exists:', tableName);
+                const checkSql = `SELECT name FROM sqlite_master WHERE type='table' AND name='${tableName}' UNION SELECT viewname as name FROM pg_views WHERE viewname='${tableName}'`;
+                
+                try {
+                    await engine.query(checkSql);
+                } catch (checkError) {
+                    console.log('Table existence check failed, trying direct query anyway');
+                }
+                
+                // Try direct SQL query
                 console.log('Querying table using direct SQL');
                 const sql = `SELECT * FROM ${tableName} LIMIT 10`;
                 console.log('Executing SQL:', sql);
@@ -726,6 +756,99 @@ LIMIT 10</textarea>
                 } catch (cloudError) {
                     displayError('duckdb-results', new Error(`Both methods failed. Direct SQL: ${directError.message}. Cloud service: ${cloudError.message}`), 'Query Error');
                 }
+            }
+        };
+
+        window.listTables = async function() {
+            if (!engineReady) return;
+
+            try {
+                console.log('Listing all tables and views in DuckDB...');
+                
+                // Get all tables and views
+                const tablesSql = `SELECT table_name, table_type FROM information_schema.tables WHERE table_schema = 'main'`;
+                const viewsSql = `SELECT table_name, 'VIEW' as table_type FROM information_schema.views WHERE table_schema = 'main'`;
+                
+                let allTables = [];
+                
+                try {
+                    const tablesResult = await engine.query(tablesSql);
+                    allTables = [...allTables, ...tablesResult.data];
+                } catch (e) {
+                    console.log('Standard table query failed, trying DuckDB specific:', e.message);
+                }
+                
+                try {
+                    const viewsResult = await engine.query(viewsSql);
+                    allTables = [...allTables, ...viewsResult.data];
+                } catch (e) {
+                    console.log('Standard view query failed, trying alternatives:', e.message);
+                }
+                
+                // Fallback: try DuckDB specific queries
+                if (allTables.length === 0) {
+                    try {
+                        const duckdbSql = `SHOW TABLES`;
+                        const result = await engine.query(duckdbSql);
+                        allTables = result.data.map(row => ({ table_name: row.name || row.table_name, table_type: 'TABLE' }));
+                    } catch (e) {
+                        console.log('DuckDB SHOW TABLES failed:', e.message);
+                    }
+                }
+                
+                displayResults('duckdb-results', { 
+                    method: 'List Tables/Views',
+                    count: allTables.length,
+                    tables: allTables,
+                    message: `Found ${allTables.length} tables/views`
+                }, 'Database Tables and Views');
+                
+            } catch (error) {
+                console.error('Failed to list tables:', error);
+                displayError('duckdb-results', error, 'List Tables Error');
+            }
+        };
+
+        window.clearDemo = async function() {
+            if (!engineReady) return;
+
+            try {
+                console.log('Clearing demo state...');
+                
+                // Clear all result divs
+                document.getElementById('cors-results').innerHTML = '';
+                document.getElementById('schema-results').innerHTML = '';
+                document.getElementById('duckdb-results').innerHTML = '';
+                document.getElementById('query-results').innerHTML = '';
+                document.getElementById('performance-results').innerHTML = '';
+                
+                // Reset form values to defaults
+                document.getElementById('table-name').value = 'taxi_trips';
+                document.getElementById('table-url').value = 'https://pub-7deacab667344397ae6d3e2ea97f11f8.r2.dev/yellow_tripdata_2023-01.parquet';
+                document.getElementById('cors-url').value = 'https://pub-7deacab667344397ae6d3e2ea97f11f8.r2.dev/yellow_tripdata_2023-01.parquet';
+                document.getElementById('schema-url').value = 'https://pub-7deacab667344397ae6d3e2ea97f11f8.r2.dev/yellow_tripdata_2023-01.parquet';
+                
+                // Try to drop any existing tables/views
+                const tablesToDrop = ['taxi_trips', 'january_2023', 'my_table'];
+                for (const table of tablesToDrop) {
+                    try {
+                        await engine.query(`DROP VIEW IF EXISTS ${table}`);
+                        await engine.query(`DROP TABLE IF EXISTS ${table}`);
+                        console.log(`Dropped ${table} if it existed`);
+                    } catch (e) {
+                        console.log(`Could not drop ${table}:`, e.message);
+                    }
+                }
+                
+                displayResults('duckdb-results', { 
+                    method: 'Clear Demo',
+                    message: 'Demo state cleared successfully. All forms reset to defaults.',
+                    success: true
+                }, 'Demo Reset Complete');
+                
+            } catch (error) {
+                console.error('Failed to clear demo:', error);
+                displayError('duckdb-results', error, 'Clear Demo Error');
             }
         };
 
