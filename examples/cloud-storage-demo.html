@@ -196,6 +196,12 @@ LIMIT 10</textarea>
         let engine = null;
         let engineReady = false;
 
+        // Defensive: Override any problematic external functions
+        window.testSingleFile = async function() {
+            console.warn('testSingleFile called but disabled for stability');
+            return { success: false, message: 'Function disabled' };
+        };
+
         // Initialize DataPrism Engine
         async function initializeEngine() {
             try {
@@ -266,6 +272,9 @@ LIMIT 10</textarea>
                 
                 engineReady = true;
                 updateEngineStatus('ready', 'Engine Ready');
+                
+                // Proactively clean up any problematic tables from previous sessions
+                await cleanupProblematicTables();
             } catch (error) {
                 console.error('Failed to initialize engine:', error);
                 updateEngineStatus('error', `Initialization Failed: ${error.message}`);
@@ -276,6 +285,38 @@ LIMIT 10</textarea>
                 
                 engineReady = true;
                 updateEngineStatus('ready', 'Engine Ready (Fallback Mode)');
+                
+                // Even in fallback mode, try to clean up
+                await cleanupProblematicTables();
+            }
+        }
+
+        async function cleanupProblematicTables() {
+            if (!engine || !engine.query) {
+                console.log('Engine not available for cleanup');
+                return;
+            }
+            
+            try {
+                console.log('Cleaning up problematic tables from previous sessions...');
+                
+                // List of problematic table names that might cause issues
+                const problematicTables = ['january_2023', 'january_trips', 'test_table', 'demo_table'];
+                
+                for (const tableName of problematicTables) {
+                    try {
+                        await engine.query(`DROP VIEW IF EXISTS ${tableName}`);
+                        await engine.query(`DROP TABLE IF EXISTS ${tableName}`);
+                        console.log(`✓ Cleaned up ${tableName}`);
+                    } catch (e) {
+                        // Ignore errors - table might not exist
+                        console.log(`- ${tableName} was not present`);
+                    }
+                }
+                
+                console.log('Table cleanup completed');
+            } catch (error) {
+                console.warn('Table cleanup failed:', error.message);
             }
         }
 
