@@ -103,7 +103,7 @@
 </head>
 <body>
     <h1>DataPrism Cloud Storage Demo</h1>
-    <p>Demonstration of CORS-aware cloud storage integration with automatic proxy fallback using real NYC taxi trip data (50MB Parquet file from CloudFlare R2).</p>
+    <p>Demonstration of CORS-aware cloud storage integration with automatic proxy fallback using real NYC taxi trip data (50MB Parquet file). Note: Due to CORS restrictions, this demo uses DuckDB's direct access with fallback strategies.</p>
     <p><strong>Engine Loading:</strong> This demo loads the DataPrism engine from CDN (<code>https://srnarasim.github.io/dataprism-core/dataprism-core.min.js</code>) as a UMD bundle via script tag, with automatic fallback to mock implementation for resilience. Check browser console for loading details.</p>
     
     <div id="engine-status" class="status loading">Initializing Engine...</div>
@@ -115,7 +115,7 @@
                 <label for="cors-url">Cloud Storage URL:</label>
                 <input type="url" id="cors-url" 
                        placeholder="https://my-bucket.s3.amazonaws.com/data.json"
-                       value="https://pub-7deacab667344397ae6d3e2ea97f11f8.r2.dev/yellow_tripdata_2023-01.parquet">
+                       value="https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2023-01.parquet">
             </div>
             <button onclick="testCorsSupport()">Test CORS Support</button>
             <button onclick="fetchWithCorsHandling()">Fetch with CORS Handling</button>
@@ -128,7 +128,7 @@
                 <label for="schema-url">File URL:</label>
                 <input type="url" id="schema-url" 
                        placeholder="https://example.com/data.csv"
-                       value="https://pub-7deacab667344397ae6d3e2ea97f11f8.r2.dev/yellow_tripdata_2023-01.parquet">
+                       value="https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2023-01.parquet">
             </div>
             <button onclick="detectFileSchema()">Detect Schema</button>
             <button onclick="getFileMetadata()">Get Metadata</button>
@@ -145,7 +145,7 @@
                 <label for="table-url">Data URL:</label>
                 <input type="url" id="table-url" 
                        placeholder="https://example.com/data.parquet"
-                       value="https://pub-7deacab667344397ae6d3e2ea97f11f8.r2.dev/yellow_tripdata_2023-01.parquet">
+                       value="https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2023-01.parquet">
             </div>
             <div class="input-group">
                 <label for="cors-handling">CORS Handling:</label>
