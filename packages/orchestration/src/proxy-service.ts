@@ -119,12 +119,17 @@ export class ProxyService {
         {
           endpoint: 'https://cors-anywhere.herokuapp.com',
           priority: 1,
-          healthScore: 50 // Start with medium health
+          healthScore: 30 // Lower health score due to reliability issues
         },
         {
-          endpoint: 'https://api.allorigins.win/get?url=',
+          endpoint: 'https://api.codetabs.com/v1/proxy',
           priority: 2,
-          healthScore: 50
+          healthScore: 70 // Better reliability
+        },
+        {
+          endpoint: 'https://corsproxy.io',
+          priority: 3,
+          healthScore: 60
         }
       ];
     } else {

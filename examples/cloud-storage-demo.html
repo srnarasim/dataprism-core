@@ -238,14 +238,13 @@ LIMIT 10</textarea>
                     queryTimeoutMs: 30000,
                     logLevel: 'info',
                     corsConfig: {
-                        strategy: 'proxy', // Use proxy for CloudFlare R2 to handle CORS headers
+                        strategy: 'auto', // Try direct first, fallback to proxy if needed
                         cacheTimeout: 300000,
-                        retryAttempts: 3
+                        retryAttempts: 2 // Reduce retries to fail faster
                     },
                     cloudProviders: {
                         'cloudflare-r2': {
-                            authMethod: 'api-key',
-                            useProxy: true // Force proxy usage for R2
+                            authMethod: 'api-key'
                         }
                     }
                 };
@@ -548,15 +547,41 @@ LIMIT 10</textarea>
             if (!url) return;
 
             try {
-                const cloudStorage = engine.cloudStorageService;
-                if (!cloudStorage) {
-                    throw new Error('Cloud storage service not available');
-                }
+                // Try direct DuckDB approach to get schema
+                console.log('Detecting schema using DuckDB DESCRIBE');
+                const sql = `DESCRIBE SELECT * FROM read_parquet('${url}') LIMIT 0`;
+                console.log('Executing SQL:', sql);
                 
-                const schema = await cloudStorage.getFileSchema(url);
-                displayResults('schema-results', schema, 'File Schema');
-            } catch (error) {
-                displayError('schema-results', error, 'Schema Detection Error');
+                const result = await engine.query(sql);
+                
+                // Convert DuckDB DESCRIBE output to schema format
+                const schema = {
+                    columns: result.data.map(col => ({
+                        name: col.column_name,
+                        type: col.column_type
+                    })),
+                    format: 'parquet',
+                    method: 'Direct DuckDB DESCRIBE',
+                    sql: sql
+                };
+                
+                displayResults('schema-results', schema, 'File Schema (Direct DuckDB)');
+                
+            } catch (directError) {
+                console.warn('Direct schema detection failed, trying cloud service:', directError.message);
+                
+                try {
+                    // Fallback to cloud storage service
+                    const cloudStorage = engine.cloudStorageService;
+                    if (!cloudStorage) {
+                        throw new Error('Cloud storage service not available and direct schema detection failed');
+                    }
+                    
+                    const schema = await cloudStorage.getFileSchema(url);
+                    displayResults('schema-results', schema, 'File Schema (Cloud Service)');
+                } catch (cloudError) {
+                    displayError('schema-results', new Error(`Both methods failed. Direct: ${directError.message}. Cloud service: ${cloudError.message}`), 'Schema Detection Error');
+                }
             }
         };
 
@@ -589,19 +614,44 @@ LIMIT 10</textarea>
             if (!tableName || !tableUrl) return;
 
             try {
-                const duckdbCloud = engine.duckdbCloudService;
-                if (!duckdbCloud) {
-                    throw new Error('DuckDB cloud service not available. Check console for initialization errors.');
-                }
+                // Try direct DuckDB SQL approach first (most reliable for Parquet files)
+                console.log('Attempting direct DuckDB registration for table:', tableName);
                 
-                const result = await duckdbCloud.registerCloudTable(
+                // Use DuckDB's built-in read_parquet function which handles HTTP directly
+                const sql = `CREATE OR REPLACE VIEW ${tableName} AS SELECT * FROM read_parquet('${tableUrl}')`;
+                console.log('Executing SQL:', sql);
+                
+                const result = await engine.query(sql);
+                
+                displayResults('duckdb-results', { 
                     tableName, 
                     tableUrl, 
-                    { corsHandling }
-                );
-                displayResults('duckdb-results', { tableName, tableUrl, corsHandling, result }, 'Table Registration');
-            } catch (error) {
-                displayError('duckdb-results', error, 'Registration Error');
+                    corsHandling,
+                    method: 'Direct DuckDB SQL',
+                    sql: sql,
+                    success: true,
+                    message: 'Table registered successfully using DuckDB read_parquet'
+                }, 'Table Registration (Direct SQL)');
+                
+            } catch (directError) {
+                console.warn('Direct SQL approach failed, trying cloud service:', directError.message);
+                
+                try {
+                    // Fallback to cloud service if available
+                    const duckdbCloud = engine.duckdbCloudService;
+                    if (!duckdbCloud) {
+                        throw new Error('DuckDB cloud service not available and direct SQL failed.');
+                    }
+                    
+                    const result = await duckdbCloud.registerCloudTable(
+                        tableName, 
+                        tableUrl, 
+                        { corsHandling }
+                    );
+                    displayResults('duckdb-results', { tableName, tableUrl, corsHandling, result }, 'Table Registration (Cloud Service)');
+                } catch (cloudError) {
+                    displayError('duckdb-results', new Error(`Both methods failed. Direct SQL: ${directError.message}. Cloud service: ${cloudError.message}`), 'Registration Error');
+                }
             }
         };
 
