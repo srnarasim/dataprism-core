@@ -1,8 +1,7 @@
 import {
   HttpClientConfig,
   CorsSupport,
-  CloudProvider,
-  CloudStorageError
+  CloudProvider
 } from './types.js';
 import { ProxyService } from './proxy-service.js';
 

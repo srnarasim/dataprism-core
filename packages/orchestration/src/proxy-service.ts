@@ -134,7 +134,7 @@ export class ProxyService {
     this.sortProxyEndpoints();
   }
 
-  private selectProxyEndpoint(url: string, exclude: ProxyEndpoint[] = []): ProxyEndpoint | null {
+  private selectProxyEndpoint(_url: string, exclude: ProxyEndpoint[] = []): ProxyEndpoint | null {
     const availableProxies = this.proxyEndpoints.filter(
       proxy => !exclude.includes(proxy) && proxy.healthScore > 0
     );

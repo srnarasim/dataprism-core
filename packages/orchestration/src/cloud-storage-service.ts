@@ -73,7 +73,7 @@ export class CloudStorageService {
     if (options?.corsHandling === 'direct') {
       response = await this.httpClient.fetch(url, requestOptions);
     } else if (options?.corsHandling === 'proxy') {
-      response = await this.httpClient.proxyService.fetch(url, requestOptions);
+      response = await (this.httpClient as any).proxyService.fetch(url, requestOptions);
     } else {
       // Auto mode - try CORS-aware fetching
       response = await this.httpClient.fetchWithCorsHandling(url, requestOptions);
@@ -268,11 +268,11 @@ export class CloudStorageService {
   private async getParquetSchema(url: string): Promise<FileSchema> {
     // For Parquet files, we need to read the metadata footer
     // This is a simplified implementation - in production, use proper Parquet library
-    const handle = await this.getFile(url, {
-      requestOptions: {
-        headers: { 'Range': 'bytes=-8192' } // Last 8KB contains footer
-      }
-    });
+    // const _handle = await this.getFile(url, {
+    //   requestOptions: {
+    //     headers: { 'Range': 'bytes=-8192' } // Last 8KB contains footer
+    //   }
+    // });
 
     // This is a placeholder - proper Parquet parsing would require a library
     const schema: FileSchema = {

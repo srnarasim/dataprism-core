@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { CloudStorageService, FileHandle } from '../cloud-storage-service.js';
-import { DataPrismHttpClient } from '../http-client.js';
+// import type { DataPrismHttpClient } from '../http-client.js';
 import { CloudStorageError } from '../types.js';
 
 // Mock the HTTP client

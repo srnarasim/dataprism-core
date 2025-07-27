@@ -1,12 +1,14 @@
+mod cloud_storage_bridge;
 mod memory_manager;
 mod query_engine;
 mod utils;
-mod cloud_storage_bridge;
 
+pub use cloud_storage_bridge::{
+    CloudDataBuffer, CloudDataRequest, CloudDataResponse, CloudStorageBridge,
+};
 pub use memory_manager::MemoryManager;
 pub use query_engine::{QueryEngine, QueryResult};
 pub use utils::*;
-pub use cloud_storage_bridge::{CloudStorageBridge, CloudDataBuffer, CloudDataRequest, CloudDataResponse};
 
 use wasm_bindgen::prelude::*;
 

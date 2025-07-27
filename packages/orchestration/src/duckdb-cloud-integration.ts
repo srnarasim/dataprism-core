@@ -1,8 +1,7 @@
 import { AsyncDuckDB } from '@duckdb/duckdb-wasm';
 import {
   CloudProvider,
-  CloudStorageError,
-  FileAccessOptions
+  CloudStorageError
 } from './types.js';
 import { CloudStorageService } from './cloud-storage-service.js';
 

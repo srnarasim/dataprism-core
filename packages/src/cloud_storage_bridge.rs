@@ -1,5 +1,5 @@
-use wasm_bindgen::prelude::*;
 use std::collections::HashMap;
+use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 extern "C" {
@@ -46,7 +46,11 @@ pub struct CloudDataResponse {
 impl CloudDataResponse {
     #[wasm_bindgen(constructor)]
     pub fn new(data: Vec<u8>, status: u16, provider: String) -> CloudDataResponse {
-        CloudDataResponse { data, status, provider }
+        CloudDataResponse {
+            data,
+            status,
+            provider,
+        }
     }
 
     #[wasm_bindgen(getter)]
@@ -85,7 +89,7 @@ impl CloudStorageBridge {
     #[wasm_bindgen]
     pub async fn fetch_cloud_data(&mut self, url: &str) -> Result<js_sys::Uint8Array, JsValue> {
         console_log!("Fetching cloud data from: {}", url);
-        
+
         // Check cache first
         if let Some(cached) = self.request_cache.get(url) {
             console_log!("Using cached data for: {}", url);
@@ -94,61 +98,71 @@ impl CloudStorageBridge {
 
         // Call JavaScript HTTP client from WASM
         let options = js_sys::Object::new();
-        js_sys::Reflect::set(&options, &JsValue::from_str("method"), &JsValue::from_str("GET"))?;
-        
-        let promise = self.js_http_client.call2(
-            &JsValue::NULL, 
-            &JsValue::from_str(url), 
-            &options
+        js_sys::Reflect::set(
+            &options,
+            &JsValue::from_str("method"),
+            &JsValue::from_str("GET"),
         )?;
-        
+
+        let promise =
+            self.js_http_client
+                .call2(&JsValue::NULL, &JsValue::from_str(url), &options)?;
+
         let response = wasm_bindgen_futures::JsFuture::from(js_sys::Promise::from(promise)).await?;
-        
+
         // Extract response data
         let array_buffer = js_sys::Reflect::get(&response, &JsValue::from_str("arrayBuffer"))?;
         let array_buffer_fn = js_sys::Function::from(array_buffer);
         let buffer_promise = array_buffer_fn.call0(&response)?;
-        let buffer = wasm_bindgen_futures::JsFuture::from(js_sys::Promise::from(buffer_promise)).await?;
-        
+        let buffer =
+            wasm_bindgen_futures::JsFuture::from(js_sys::Promise::from(buffer_promise)).await?;
+
         let uint8_array = js_sys::Uint8Array::new(&buffer);
         let data: Vec<u8> = uint8_array.to_vec();
-        
+
         // Cache the response
         let status = js_sys::Reflect::get(&response, &JsValue::from_str("status"))?
-            .as_f64().unwrap_or(200.0) as u16;
+            .as_f64()
+            .unwrap_or(200.0) as u16;
         let provider = self.detect_provider(url);
-        
+
         let cached_response = CloudDataResponse::new(data.clone(), status, provider);
-        
+
         self.request_cache.insert(url.to_string(), cached_response);
-        
+
         Ok(js_sys::Uint8Array::from(&data[..]))
     }
 
     #[wasm_bindgen]
     pub async fn fetch_cloud_metadata(&self, url: &str) -> Result<JsValue, JsValue> {
         console_log!("Fetching cloud metadata from: {}", url);
-        
+
         let options = js_sys::Object::new();
-        js_sys::Reflect::set(&options, &JsValue::from_str("method"), &JsValue::from_str("HEAD"))?;
-        
-        let promise = self.js_http_client.call2(
-            &JsValue::NULL, 
-            &JsValue::from_str(url), 
-            &options
+        js_sys::Reflect::set(
+            &options,
+            &JsValue::from_str("method"),
+            &JsValue::from_str("HEAD"),
         )?;
-        
+
+        let promise =
+            self.js_http_client
+                .call2(&JsValue::NULL, &JsValue::from_str(url), &options)?;
+
         let response = wasm_bindgen_futures::JsFuture::from(js_sys::Promise::from(promise)).await?;
-        
+
         // Extract metadata
         let metadata = js_sys::Object::new();
         let status = js_sys::Reflect::get(&response, &JsValue::from_str("status"))?;
         let headers = js_sys::Reflect::get(&response, &JsValue::from_str("headers"))?;
-        
+
         js_sys::Reflect::set(&metadata, &JsValue::from_str("status"), &status)?;
         js_sys::Reflect::set(&metadata, &JsValue::from_str("headers"), &headers)?;
-        js_sys::Reflect::set(&metadata, &JsValue::from_str("provider"), &JsValue::from_str(&self.detect_provider(url)))?;
-        
+        js_sys::Reflect::set(
+            &metadata,
+            &JsValue::from_str("provider"),
+            &JsValue::from_str(&self.detect_provider(url)),
+        )?;
+
         Ok(metadata.into())
     }
 
@@ -173,48 +187,61 @@ impl CloudStorageBridge {
     }
 
     #[wasm_bindgen]
-    pub async fn stream_cloud_data(&self, url: &str, chunk_size: usize) -> Result<js_sys::Array, JsValue> {
-        console_log!("Streaming cloud data from: {} with chunk size: {}", url, chunk_size);
-        
+    pub async fn stream_cloud_data(
+        &self,
+        url: &str,
+        chunk_size: usize,
+    ) -> Result<js_sys::Array, JsValue> {
+        console_log!(
+            "Streaming cloud data from: {} with chunk size: {}",
+            url,
+            chunk_size
+        );
+
         // For streaming, we'll fetch the data and split it into chunks
         // In a real implementation, this would use HTTP range requests
         let options = js_sys::Object::new();
-        js_sys::Reflect::set(&options, &JsValue::from_str("method"), &JsValue::from_str("GET"))?;
-        
-        let promise = self.js_http_client.call2(
-            &JsValue::NULL, 
-            &JsValue::from_str(url), 
-            &options
+        js_sys::Reflect::set(
+            &options,
+            &JsValue::from_str("method"),
+            &JsValue::from_str("GET"),
         )?;
-        
+
+        let promise =
+            self.js_http_client
+                .call2(&JsValue::NULL, &JsValue::from_str(url), &options)?;
+
         let response = wasm_bindgen_futures::JsFuture::from(js_sys::Promise::from(promise)).await?;
-        
+
         let array_buffer = js_sys::Reflect::get(&response, &JsValue::from_str("arrayBuffer"))?;
         let array_buffer_fn = js_sys::Function::from(array_buffer);
         let buffer_promise = array_buffer_fn.call0(&response)?;
-        let buffer = wasm_bindgen_futures::JsFuture::from(js_sys::Promise::from(buffer_promise)).await?;
-        
+        let buffer =
+            wasm_bindgen_futures::JsFuture::from(js_sys::Promise::from(buffer_promise)).await?;
+
         let uint8_array = js_sys::Uint8Array::new(&buffer);
         let data: Vec<u8> = uint8_array.to_vec();
-        
+
         // Split data into chunks
         let chunks = js_sys::Array::new();
         for chunk in data.chunks(chunk_size) {
             let chunk_array = js_sys::Uint8Array::from(chunk);
             chunks.push(&chunk_array);
         }
-        
+
         Ok(chunks)
     }
 
     fn detect_provider(&self, url: &str) -> String {
         let url_lower = url.to_lowercase();
-        
+
         if url_lower.contains("amazonaws.com") || url_lower.contains("s3.") {
             "aws-s3".to_string()
         } else if url_lower.contains("r2.dev") || url_lower.contains("r2.cloudflarestorage.com") {
             "cloudflare-r2".to_string()
-        } else if url_lower.contains("googleapis.com") || url_lower.contains("storage.cloud.google.com") {
+        } else if url_lower.contains("googleapis.com")
+            || url_lower.contains("storage.cloud.google.com")
+        {
             "google-cloud-storage".to_string()
         } else if url_lower.contains("blob.core.windows.net") {
             "azure-blob".to_string()

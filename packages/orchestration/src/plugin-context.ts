@@ -6,8 +6,7 @@ import { ProxyService } from './proxy-service.js';
 import {
   CloudProvider,
   CloudCredentials,
-  Logger,
-  LogLevel
+  Logger
 } from './types.js';
 
 export type CorsStrategy = 'auto' | 'direct' | 'proxy';
@@ -99,7 +98,7 @@ export class PluginContextBuilder {
       httpClient,
       cloudStorage,
       duckdbCloud: duckdbCloud!,
-      proxy: httpClient.proxyService,
+      proxy: (httpClient as any).proxyService,
     };
   }
 

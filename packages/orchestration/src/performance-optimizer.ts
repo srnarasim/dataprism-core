@@ -148,7 +148,7 @@ export class PerformanceOptimizer {
       name: 'connection-pooling',
       priority: 7,
       condition: (metrics) => metrics.networkLatency > 500,
-      apply: async (context) => {
+      apply: async (_context) => {
         return {
           strategy: 'connection-pooling',
           applied: true,
@@ -195,7 +195,7 @@ export class PerformanceOptimizer {
       name: 'memory-optimization',
       priority: 6,
       condition: (metrics) => metrics.memoryUsage > 500 * 1024 * 1024, // 500MB
-      apply: async (context) => {
+      apply: async (_context) => {
         return {
           strategy: 'memory-optimization',
           applied: true,

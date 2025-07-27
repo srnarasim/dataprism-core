@@ -30,6 +30,18 @@ describe('Cloud Storage Integration Tests', () => {
         credentials: {
           apiKey: 'test-r2-key'
         }
+      },
+      'google-cloud-storage': {
+        authMethod: 'oauth2',
+        credentials: {
+          oauth2Token: 'test-gcs-token'
+        }
+      },
+      'azure-blob': {
+        authMethod: 'api-key',
+        credentials: {
+          apiKey: 'test-azure-key'
+        }
       }
     }
   };
@@ -335,7 +347,7 @@ describe('Cloud Storage Integration Tests', () => {
       }
     });
 
-    it('should evict expired cache entries', (done) => {
+    it('should evict expired cache entries', async () => {
       const schemaCache = engine.schemaCacheService;
       expect(schemaCache).toBeDefined();
 
@@ -348,13 +360,13 @@ describe('Cloud Storage Integration Tests', () => {
         expect(schemaCache.get('short-lived')).toEqual(testSchema);
 
         // Wait for expiration and cleanup
-        setTimeout(() => {
-          schemaCache.cleanup();
-          expect(schemaCache.get('short-lived')).toBeNull();
-          done();
-        }, 150);
-      } else {
-        done();
+        await new Promise<void>((resolve) => {
+          setTimeout(() => {
+            schemaCache.cleanup();
+            expect(schemaCache.get('short-lived')).toBeNull();
+            resolve();
+          }, 150);
+        });
       }
     });
   });
