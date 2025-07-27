@@ -103,7 +103,7 @@
 </head>
 <body>
     <h1>DataPrism Cloud Storage Demo</h1>
-    <p>Demonstration of CORS-aware cloud storage integration with automatic proxy fallback.</p>
+    <p>Demonstration of CORS-aware cloud storage integration with automatic proxy fallback using real NYC taxi trip data (50MB Parquet file from CloudFlare R2).</p>
     
     <div id="engine-status" class="status loading">Initializing Engine...</div>
     
@@ -114,7 +114,7 @@
                 <label for="cors-url">Cloud Storage URL:</label>
                 <input type="url" id="cors-url" 
                        placeholder="https://my-bucket.s3.amazonaws.com/data.json"
-                       value="https://jsonplaceholder.typicode.com/posts">
+                       value="https://pub-7deacab667344397ae6d3e2ea97f11f8.r2.dev/yellow_tripdata_2023-01.parquet">
             </div>
             <button onclick="testCorsSupport()">Test CORS Support</button>
             <button onclick="fetchWithCorsHandling()">Fetch with CORS Handling</button>
@@ -127,7 +127,7 @@
                 <label for="schema-url">File URL:</label>
                 <input type="url" id="schema-url" 
                        placeholder="https://example.com/data.csv"
-                       value="https://jsonplaceholder.typicode.com/posts">
+                       value="https://pub-7deacab667344397ae6d3e2ea97f11f8.r2.dev/yellow_tripdata_2023-01.parquet">
             </div>
             <button onclick="detectFileSchema()">Detect Schema</button>
             <button onclick="getFileMetadata()">Get Metadata</button>
@@ -138,13 +138,13 @@
             <h2>DuckDB Cloud Integration</h2>
             <div class="input-group">
                 <label for="table-name">Table Name:</label>
-                <input type="text" id="table-name" placeholder="my_table" value="posts">
+                <input type="text" id="table-name" placeholder="my_table" value="taxi_trips">
             </div>
             <div class="input-group">
                 <label for="table-url">Data URL:</label>
                 <input type="url" id="table-url" 
                        placeholder="https://example.com/data.parquet"
-                       value="https://jsonplaceholder.typicode.com/posts">
+                       value="https://pub-7deacab667344397ae6d3e2ea97f11f8.r2.dev/yellow_tripdata_2023-01.parquet">
             </div>
             <div class="input-group">
                 <label for="cors-handling">CORS Handling:</label>
@@ -172,7 +172,17 @@
         <h2>SQL Query Interface</h2>
         <div class="input-group">
             <label for="sql-query">SQL Query:</label>
-            <textarea id="sql-query" rows="4" placeholder="SELECT * FROM my_table LIMIT 10">SELECT 'Hello from DataPrism Cloud Storage!' as message</textarea>
+            <textarea id="sql-query" rows="4" placeholder="SELECT * FROM my_table LIMIT 10">SELECT 
+  PULocationID as pickup_location_id, 
+  DOLocationID as dropoff_location_id, 
+  trip_distance, 
+  fare_amount,
+  COUNT(*) as trip_count 
+FROM taxi_trips 
+WHERE trip_distance > 1.0 
+GROUP BY PULocationID, DOLocationID, trip_distance, fare_amount 
+ORDER BY trip_count DESC 
+LIMIT 10</textarea>
         </div>
         <button onclick="executeQuery()">Execute Query</button>
         <div id="query-results" class="results"></div>
@@ -186,11 +196,12 @@
         // Initialize DataPrism Engine
         async function initializeEngine() {
             try {
-                // In a real implementation, this would load from the actual CDN
-                // For this demo, we'll simulate the engine initialization
-                console.log('Initializing DataPrism Engine...');
+                console.log('Loading DataPrism Engine from CDN...');
                 
-                // Simulate engine configuration
+                // Load DataPrismEngine from CDN
+                const { DataPrismEngine } = await import('https://srnarasim.github.io/dataprism-core/bundles/dataprism-core.es.js');
+                
+                // Create engine with real configuration
                 const config = {
                     enableWasmOptimizations: false,
                     maxMemoryMB: 1024,
@@ -200,13 +211,32 @@
                         strategy: 'auto',
                         cacheTimeout: 300000,
                         retryAttempts: 3
+                    },
+                    cloudProviders: {
+                        'cloudflare-r2': {
+                            authMethod: 'api-key'
+                        }
                     }
                 };
 
-                // Simulate successful initialization
-                await new Promise(resolve => setTimeout(resolve, 2000));
+                engine = new DataPrismEngine(config);
+                await engine.initialize();
                 
-                // Mock engine object for demo
+                console.log('DataPrism Engine initialized successfully');
+                
+                // Verify services are available
+                if (!engine.cloudStorageService || !engine.httpClientService) {
+                    throw new Error('Cloud storage services not properly initialized');
+                }
+                
+                engineReady = true;
+                updateEngineStatus('ready', 'Engine Ready');
+            } catch (error) {
+                console.error('Failed to initialize engine:', error);
+                updateEngineStatus('error', `Initialization Failed: ${error.message}`);
+                
+                // Fallback to mock implementation for demo purposes
+                console.log('Falling back to mock implementation...');
                 engine = {
                     httpClientService: {
                         testCorsSupport: async (url) => ({
@@ -230,16 +260,15 @@
                     cloudStorageService: {
                         getFile: async (url) => ({
                             url,
-                            provider: 'demo',
+                            provider: 'cloudflare-r2',
                             metadata: {
-                                size: Math.floor(Math.random() * 1000000),
-                                contentType: 'application/json',
-                                lastModified: new Date(),
-                                provider: 'demo'
+                                size: 50 * 1024 * 1024, // 50MB estimate
+                                contentType: 'application/octet-stream',
+                                lastModified: new Date('2023-02-01'),
+                                provider: 'cloudflare-r2'
                             },
                             getContentAsText: async () => {
-                                const response = await fetch(url);
-                                return await response.text();
+                                return 'Binary parquet data (not displayable as text)';
                             },
                             getContentAsBuffer: async () => {
                                 const response = await fetch(url);
@@ -248,14 +277,34 @@
                         }),
                         getFileSchema: async (url) => ({
                             columns: [
-                                { name: 'id', type: 'number' },
-                                { name: 'title', type: 'string' },
-                                { name: 'body', type: 'string' },
-                                { name: 'userId', type: 'number' }
+                                { name: 'VendorID', type: 'integer' },
+                                { name: 'tpep_pickup_datetime', type: 'timestamp' },
+                                { name: 'tpep_dropoff_datetime', type: 'timestamp' },
+                                { name: 'passenger_count', type: 'integer' },
+                                { name: 'trip_distance', type: 'double' },
+                                { name: 'RatecodeID', type: 'integer' },
+                                { name: 'store_and_fwd_flag', type: 'string' },
+                                { name: 'PULocationID', type: 'integer' },
+                                { name: 'DOLocationID', type: 'integer' },
+                                { name: 'payment_type', type: 'integer' },
+                                { name: 'fare_amount', type: 'double' },
+                                { name: 'extra', type: 'double' },
+                                { name: 'mta_tax', type: 'double' },
+                                { name: 'tip_amount', type: 'double' },
+                                { name: 'tolls_amount', type: 'double' },
+                                { name: 'improvement_surcharge', type: 'double' },
+                                { name: 'total_amount', type: 'double' }
                             ],
-                            format: 'json',
-                            rowCount: Math.floor(Math.random() * 1000)
-                        })
+                            format: 'parquet',
+                            rowCount: 3066766 // Actual row count for this dataset
+                        }),
+                        detectProvider: (url) => {
+                            if (url.includes('r2.dev')) return 'cloudflare-r2';
+                            if (url.includes('s3.amazonaws.com') || url.includes('.s3.')) return 'aws-s3';
+                            if (url.includes('googleapis.com')) return 'google-cloud-storage';
+                            if (url.includes('blob.core.windows.net')) return 'azure-blob';
+                            return 'unknown';
+                        }
                     },
                     duckdbCloudService: {
                         registerCloudTable: async (name, url, options) => {
@@ -263,10 +312,13 @@
                             return { success: true };
                         },
                         queryCloudTable: async (name) => {
+                            // Sample taxi trip data structure
                             return [
-                                { id: 1, title: 'Sample Post 1', userId: 1 },
-                                { id: 2, title: 'Sample Post 2', userId: 1 },
-                                { id: 3, title: 'Sample Post 3', userId: 2 }
+                                { pickup_location_id: 161, dropoff_location_id: 236, trip_distance: 2.1, fare_amount: 12.5, trip_count: 147 },
+                                { pickup_location_id: 236, dropoff_location_id: 161, trip_distance: 1.8, fare_amount: 10.0, trip_count: 132 },
+                                { pickup_location_id: 79, dropoff_location_id: 161, trip_distance: 3.2, fare_amount: 16.5, trip_count: 98 },
+                                { pickup_location_id: 161, dropoff_location_id: 79, trip_distance: 2.9, fare_amount: 15.0, trip_count: 87 },
+                                { pickup_location_id: 148, dropoff_location_id: 236, trip_distance: 4.1, fare_amount: 18.5, trip_count: 76 }
                             ];
                         }
                     },
@@ -322,10 +374,26 @@
                         // Simulate query execution
                         await new Promise(resolve => setTimeout(resolve, Math.random() * 1000 + 500));
                         
-                        if (sql.toLowerCase().includes('select')) {
+                        if (sql.toLowerCase().includes('taxi_trips')) {
+                            // Return mock taxi data that matches the query structure
                             return {
                                 data: [
-                                    { message: 'Hello from DataPrism Cloud Storage!', timestamp: new Date().toISOString() }
+                                    { pickup_location_id: 161, dropoff_location_id: 236, trip_distance: 2.1, fare_amount: 12.5, trip_count: 147 },
+                                    { pickup_location_id: 236, dropoff_location_id: 161, trip_distance: 1.8, fare_amount: 10.0, trip_count: 132 },
+                                    { pickup_location_id: 79, dropoff_location_id: 161, trip_distance: 3.2, fare_amount: 16.5, trip_count: 98 },
+                                    { pickup_location_id: 161, dropoff_location_id: 79, trip_distance: 2.9, fare_amount: 15.0, trip_count: 87 },
+                                    { pickup_location_id: 148, dropoff_location_id: 236, trip_distance: 4.1, fare_amount: 18.5, trip_count: 76 }
+                                ],
+                                metadata: {
+                                    rowCount: 5,
+                                    executionTime: Math.floor(Math.random() * 2000) + 500,
+                                    memoryUsage: Math.floor(Math.random() * 50000000) + 10000000
+                                }
+                            };
+                        } else if (sql.toLowerCase().includes('select')) {
+                            return {
+                                data: [
+                                    { message: 'Query executed against cloud storage!', timestamp: new Date().toISOString() }
                                 ],
                                 metadata: {
                                     rowCount: 1,
@@ -338,10 +406,10 @@
                         }
                     }
                 };
-
-                engineReady = true;
-                updateEngineStatus('ready', 'Engine Ready');
-                console.log('DataPrism Engine initialized successfully');
+                
+                    engineReady = true;
+                    updateEngineStatus('ready', 'Engine Ready (Fallback Mode)');
+                }
             } catch (error) {
                 console.error('Failed to initialize engine:', error);
                 updateEngineStatus('error', 'Initialization Failed');
