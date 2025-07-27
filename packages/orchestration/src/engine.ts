@@ -94,7 +94,7 @@ export class DataPrismEngine {
         })
       );
 
-      // Initialize Cloud Storage services
+      // Initialize Cloud Storage services (will wait for DuckDB internally)
       initPromises.push(
         this.initializeCloudStorage().catch(error => {
           this.log("warn", `Cloud storage initialization failed: ${error.message}`);
@@ -497,16 +497,27 @@ export class DataPrismEngine {
 
       // Initialize DuckDB cloud integration once DuckDB is ready
       if (this.duckdb) {
-        const duckdbInstance = await this.duckdb.getDuckDB();
-        if (duckdbInstance) {
-          this.duckdbCloud = new DuckDBCloudIntegration(duckdbInstance, this.cloudStorage);
-          
-          // Initialize cloud storage support in DuckDB
-          await this.duckdbCloud.registerCloudStorage({
-            enableHttpfs: true,
-            proxyEndpoint: this.config.corsConfig?.proxyEndpoint,
-            credentials: this.config.cloudProviders
-          });
+        // Wait for DuckDB to be fully initialized before creating cloud integration
+        try {
+          await this.dependencyRegistry.waitForDependency("duckdb", 30000);
+          const duckdbInstance = await this.duckdb.getDuckDB();
+          if (duckdbInstance) {
+            this.duckdbCloud = new DuckDBCloudIntegration(duckdbInstance, this.cloudStorage);
+            
+            // Initialize cloud storage support in DuckDB
+            await this.duckdbCloud.registerCloudStorage({
+              enableHttpfs: true,
+              proxyEndpoint: this.config.corsConfig?.proxyEndpoint,
+              credentials: this.config.cloudProviders
+            });
+            
+            this.log("info", "DuckDB cloud integration initialized successfully");
+          } else {
+            this.log("warn", "DuckDB instance is null after waiting for dependency");
+          }
+        } catch (error) {
+          this.log("error", `Failed to wait for DuckDB dependency: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          throw error;
         }
       }
 
