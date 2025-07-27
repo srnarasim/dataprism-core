@@ -78,262 +78,46 @@ jobs:
         # Copy examples
         cp -r examples gh-pages/examples
         
-        # Create index.html for GitHub Pages
-        cat > gh-pages/index.html << 'EOF'
+        # Create simple index.html for GitHub Pages
+        cat > gh-pages/index.html << 'PAGEEOF'
         <!DOCTYPE html>
-        <html lang="en">
+        <html>
         <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>DataPrism Core CDN - Browser Analytics Engine</title>
-            <meta name="description" content="High-performance WebAssembly analytics engine with CORS-aware cloud storage integration. Analyze large datasets directly in the browser.">
+            <title>DataPrism Core CDN</title>
             <style>
-                body {
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-                    max-width: 1200px;
-                    margin: 0 auto;
-                    padding: 20px;
-                    line-height: 1.6;
-                }
-                .grid {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-                    gap: 20px;
-                    margin-top: 20px;
-                }
-                .card {
-                    border: 1px solid #ddd;
-                    border-radius: 8px;
-                    padding: 20px;
-                    background: #f9f9f9;
-                }
-                .card h3 {
-                    margin-top: 0;
-                    color: #007acc;
-                }
-                .demo-cta { 
-                    text-align: center; 
-                    margin: 30px 0; 
-                    padding: 20px;
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    border-radius: 12px;
-                }
-                .demo-button { 
-                    display: inline-block; 
-                    padding: 15px 30px; 
-                    background: white; 
-                    color: #667eea; 
-                    text-decoration: none; 
-                    border-radius: 8px; 
-                    font-weight: bold; 
-                    font-size: 1.1em;
-                    transition: transform 0.3s ease;
-                }
-                .demo-button:hover { 
-                    transform: translateY(-2px);
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-                }
-                .stats { 
-                    display: flex; 
-                    justify-content: center; 
-                    gap: 40px; 
-                    margin: 20px 0; 
-                    flex-wrap: wrap; 
-                }
-                .stat { text-align: center; }
-                .stat-number { 
-                    font-size: 2em; 
-                    font-weight: bold; 
-                    color: #007acc; 
-                }
-                .stat-label { 
-                    color: #666; 
-                    font-size: 0.9em; 
-                }
-                code {
-                    background: #f5f5f5;
-                    padding: 2px 4px;
-                    border-radius: 3px;
-                    font-family: Monaco, Consolas, monospace;
-                }
-                pre {
-                    background: #f5f5f5;
-                    padding: 15px;
-                    border-radius: 5px;
-                    overflow-x: auto;
-                }
-                a {
-                    color: #007acc;
-                    text-decoration: none;
-                }
-                a:hover {
-                    text-decoration: underline;
-                }
+                body { font-family: system-ui, sans-serif; margin: 40px auto; max-width: 900px; padding: 0 20px; }
+                .demo { text-align: center; background: #667eea; padding: 30px; border-radius: 10px; margin: 30px 0; }
+                .demo a { display: inline-block; padding: 15px 30px; background: white; color: #667eea; text-decoration: none; border-radius: 8px; font-weight: bold; }
             </style>
         </head>
         <body>
             <h1>DataPrism Core CDN</h1>
-            <p>High-performance WebAssembly analytics engine with CORS-aware cloud storage integration</p>
-            <p style="color: #666; font-size: 1.1em;">Analyze massive datasets directly in the browser • No downloads required • Real-time cloud data processing</p>
+            <p>High-performance WebAssembly analytics engine with cloud storage integration</p>
             
-            <div class="stats">
-                <div class="stat">
-                    <div class="stat-number">&lt;1MB</div>
-                    <div class="stat-label">Bundle Size</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-number">&lt;2s</div>
-                    <div class="stat-label">Query Time</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-number">1M+</div>
-                    <div class="stat-label">Rows Supported</div>
-                </div>
+            <div class="demo">
+                <a href="examples/cloud-storage-demo.html">Try Live Demo with NYC Taxi Data</a>
             </div>
             
-            <div class="demo-cta">
-                <a href="examples/cloud-storage-demo.html" class="demo-button">🚀 Try Live Demo with NYC Taxi Data</a>
-                <p style="color: white; margin: 10px 0 0 0; font-size: 0.95em;">Interactive demo with 50MB real dataset • No signup required</p>
-            </div>
-            
-            <div class="grid">
-                <div class="card">
-                    <h3>CDN Bundles</h3>
-                    <p>Pre-built, optimized bundles ready for production use:</p>
-                    <ul>
-                        <li><a href="bundles/dataprism-core.min.js">Full Bundle (ESM)</a></li>
-                        <li><a href="bundles/dataprism-core.umd.js">Full Bundle (UMD)</a></li>
-                        <li><a href="bundles/dataprism-core-lite.min.js">Lite Bundle (ESM)</a></li>
-                        <li><a href="bundles/dataprism-core-lite.umd.js">Lite Bundle (UMD)</a></li>
-                    </ul>
-                </div>
-                
-                <div class="card">
-                    <h3>WASM Modules</h3>
-                    <p>WebAssembly modules for high-performance analytics:</p>
-                    <ul>
-                        <li><a href="wasm/">WASM Directory</a></li>
-                    </ul>
-                </div>
-                
-                <div class="card">
-                    <h3>Documentation</h3>
-                    <p>Comprehensive guides and API documentation:</p>
-                    <ul>
-                        <li><a href="docs/cloud-storage-usage.md">📚 Cloud Storage Usage Guide</a></li>
-                        <li><a href="docs/cloud-storage-api.md">🔧 Cloud Storage API</a></li>
-                        <li><a href="docs/">📖 All Documentation</a></li>
-                    </ul>
-                </div>
-                
-                <div class="card">
-                    <h3>Examples</h3>
-                    <p>Interactive demos and example implementations:</p>
-                    <ul>
-                        <li><a href="examples/cloud-storage-demo.html">🚕 Cloud Storage Demo</a> <span class="badge">Live Data</span></li>
-                        <li><a href="examples/">🗂️ All Examples</a></li>
-                    </ul>
-                    <p style="font-size: 0.9em; color: #666; margin-top: 10px;">
-                        Try our interactive demo with real 50MB NYC taxi dataset featuring 3+ million records
-                    </p>
-                </div>
-            </div>
-            
-            <h2>Quick Start</h2>
-            <p>Include DataPrism Core in your web application:</p>
-            
-            <h3>🌐 Cloud Storage Integration (Recommended)</h3>
-            <pre><code>// Load DataPrism Core from CDN
-import { DataPrismEngine } from 'https://srnarasim.github.io/dataprism-core/dataprism-core.min.js';
-
-const engine = new DataPrismEngine({
-  corsConfig: { strategy: 'auto' },
-  cloudProviders: {
-    'cloudflare-r2': { authMethod: 'api-key' },
-    'aws-s3': { authMethod: 'api-key' }
-  }
-});
-
-await engine.initialize();
-
-// Register table from cloud storage (Direct DuckDB approach)
-await engine.query(`
-  CREATE VIEW taxi_data AS 
-  SELECT * FROM read_parquet('https://your-bucket.r2.dev/data.parquet')
-`);
-
-// Analyze with SQL
-const result = await engine.query(`
-  SELECT 
-    pickup_location, 
-    COUNT(*) as trips,
-    AVG(fare_amount) as avg_fare
-  FROM taxi_data
-  WHERE trip_distance > 1.0
-  GROUP BY pickup_location
-  ORDER BY trips DESC
-  LIMIT 10
-`);
-
-console.log('Analysis Results:', result.data);</code></pre>
-
-            <h3>UMD (Universal)</h3>
-            <pre><code>&lt;script src="https://srnarasim.github.io/dataprism-core/bundles/dataprism-core.umd.js"&gt;&lt;/script&gt;
-&lt;script&gt;
-  const { DataPrismEngine } = DataPrismCore;
-  
-  const engine = new DataPrismEngine({
-    corsConfig: { strategy: 'auto' }
-  });
-  
-  engine.initialize().then(() => {
-    console.log('DataPrism Engine ready!');
-  });
-&lt;/script&gt;</code></pre>
-
-            <h2>✨ Key Features</h2>
-            <div class="grid">
-                <div class="card">
-                    <h3>☁️ CORS-Aware Cloud Storage</h3>
-                    <p>Seamless access to AWS S3, CloudFlare R2, Google Cloud Storage, and Azure Blob Storage with automatic proxy fallback and range request support</p>
-                </div>
-                <div class="card">
-                    <h3>⚡ High-Performance Analytics</h3>
-                    <p>DuckDB-powered SQL analytics with WebAssembly optimizations delivering sub-second query performance on millions of rows</p>
-                </div>
-                <div class="card">
-                    <h3>🧠 Intelligent Caching</h3>
-                    <p>Multi-tier caching system with LRU eviction, TTL management, and automatic BigInt serialization for optimal performance</p>
-                </div>
-                <div class="card">
-                    <h3>🌐 Browser Optimized</h3>
-                    <p>Optimized bundles under 1MB with lazy loading, streaming support, and no server dependencies required</p>
-                </div>
-                <div class="card">
-                    <h3>📊 Format Support</h3>
-                    <p>Native support for Parquet, CSV, JSON, and TSV with automatic schema detection and type inference</p>
-                </div>
-                <div class="card">
-                    <h3>🔧 TypeScript Ready</h3>
-                    <p>Full TypeScript support with comprehensive type definitions and modern ES module compatibility</p>
-                </div>
-            </div>
-
-            <h2>Browser Compatibility</h2>
+            <h3>CDN Bundles</h3>
             <ul>
-                <li>Chrome 90+</li>
-                <li>Firefox 88+</li>
-                <li>Safari 14+</li>
-                <li>Edge 90+</li>
+                <li><a href="bundles/dataprism-core.min.js">dataprism-core.min.js</a></li>
+                <li><a href="bundles/dataprism-core.umd.js">dataprism-core.umd.js</a></li>
             </ul>
-
-            <p><em>Last updated: <span id="timestamp"></span></em></p>
-            <script>
-                document.getElementById('timestamp').textContent = new Date().toISOString();
-            </script>
+            
+            <h3>Documentation</h3>
+            <ul>
+                <li><a href="docs/cloud-storage-usage.md">Cloud Storage Usage Guide</a></li>
+                <li><a href="docs/">All Documentation</a></li>
+            </ul>
+            
+            <h3>Examples</h3>
+            <ul>
+                <li><a href="examples/cloud-storage-demo.html">Cloud Storage Demo</a></li>
+                <li><a href="examples/">All Examples</a></li>
+            </ul>
         </body>
         </html>
-        EOF
+        PAGEEOF
 
     - name: Setup Pages
       uses: actions/configure-pages@v4
