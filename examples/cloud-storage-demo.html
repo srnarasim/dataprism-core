@@ -238,183 +238,189 @@ LIMIT 10</textarea>
                 
                 // Fallback to mock implementation for demo purposes
                 console.log('Falling back to mock implementation...');
-                engine = {
-                    httpClientService: {
-                        testCorsSupport: async (url) => ({
-                            supportsDirectAccess: Math.random() > 0.5,
-                            requiresProxy: Math.random() > 0.3,
-                            supportedMethods: ['GET', 'HEAD'],
-                            maxFileSize: 1024 * 1024 * 10
-                        }),
-                        fetchWithCorsHandling: async (url) => {
+                createMockEngine();
+                
+                engineReady = true;
+                updateEngineStatus('ready', 'Engine Ready (Fallback Mode)');
+            }
+        }
+
+        function createMockEngine() {
+            engine = {
+                httpClientService: {
+                    testCorsSupport: async (url) => ({
+                        supportsDirectAccess: Math.random() > 0.5,
+                        requiresProxy: Math.random() > 0.3,
+                        supportedMethods: ['GET', 'HEAD'],
+                        maxFileSize: 1024 * 1024 * 10
+                    }),
+                    fetchWithCorsHandling: async (url) => {
+                        const response = await fetch(url);
+                        return response;
+                    },
+                    detectProvider: (url) => {
+                        if (url.includes('s3.amazonaws.com') || url.includes('.s3.')) return 'aws-s3';
+                        if (url.includes('r2.dev')) return 'cloudflare-r2';
+                        if (url.includes('googleapis.com')) return 'google-cloud-storage';
+                        if (url.includes('blob.core.windows.net')) return 'azure-blob';
+                        return 'unknown';
+                    }
+                },
+                cloudStorageService: {
+                    getFile: async (url) => ({
+                        url,
+                        provider: 'cloudflare-r2',
+                        metadata: {
+                            size: 50 * 1024 * 1024, // 50MB estimate
+                            contentType: 'application/octet-stream',
+                            lastModified: new Date('2023-02-01'),
+                            provider: 'cloudflare-r2'
+                        },
+                        getContentAsText: async () => {
+                            return 'Binary parquet data (not displayable as text)';
+                        },
+                        getContentAsBuffer: async () => {
                             const response = await fetch(url);
-                            return response;
-                        },
-                        detectProvider: (url) => {
-                            if (url.includes('s3.amazonaws.com') || url.includes('.s3.')) return 'aws-s3';
-                            if (url.includes('r2.dev')) return 'cloudflare-r2';
-                            if (url.includes('googleapis.com')) return 'google-cloud-storage';
-                            if (url.includes('blob.core.windows.net')) return 'azure-blob';
-                            return 'unknown';
+                            return await response.arrayBuffer();
                         }
+                    }),
+                    getFileSchema: async (url) => ({
+                        columns: [
+                            { name: 'VendorID', type: 'integer' },
+                            { name: 'tpep_pickup_datetime', type: 'timestamp' },
+                            { name: 'tpep_dropoff_datetime', type: 'timestamp' },
+                            { name: 'passenger_count', type: 'integer' },
+                            { name: 'trip_distance', type: 'double' },
+                            { name: 'RatecodeID', type: 'integer' },
+                            { name: 'store_and_fwd_flag', type: 'string' },
+                            { name: 'PULocationID', type: 'integer' },
+                            { name: 'DOLocationID', type: 'integer' },
+                            { name: 'payment_type', type: 'integer' },
+                            { name: 'fare_amount', type: 'double' },
+                            { name: 'extra', type: 'double' },
+                            { name: 'mta_tax', type: 'double' },
+                            { name: 'tip_amount', type: 'double' },
+                            { name: 'tolls_amount', type: 'double' },
+                            { name: 'improvement_surcharge', type: 'double' },
+                            { name: 'total_amount', type: 'double' }
+                        ],
+                        format: 'parquet',
+                        rowCount: 3066766 // Actual row count for this dataset
+                    }),
+                    detectProvider: (url) => {
+                        if (url.includes('r2.dev')) return 'cloudflare-r2';
+                        if (url.includes('s3.amazonaws.com') || url.includes('.s3.')) return 'aws-s3';
+                        if (url.includes('googleapis.com')) return 'google-cloud-storage';
+                        if (url.includes('blob.core.windows.net')) return 'azure-blob';
+                        return 'unknown';
+                    }
+                },
+                duckdbCloudService: {
+                    registerCloudTable: async (name, url, options) => {
+                        console.log(`Registered table: ${name} from ${url}`);
+                        return { success: true };
                     },
-                    cloudStorageService: {
-                        getFile: async (url) => ({
-                            url,
-                            provider: 'cloudflare-r2',
-                            metadata: {
-                                size: 50 * 1024 * 1024, // 50MB estimate
-                                contentType: 'application/octet-stream',
-                                lastModified: new Date('2023-02-01'),
-                                provider: 'cloudflare-r2'
-                            },
-                            getContentAsText: async () => {
-                                return 'Binary parquet data (not displayable as text)';
-                            },
-                            getContentAsBuffer: async () => {
-                                const response = await fetch(url);
-                                return await response.arrayBuffer();
+                    queryCloudTable: async (name) => {
+                        // Sample taxi trip data structure
+                        return [
+                            { pickup_location_id: 161, dropoff_location_id: 236, trip_distance: 2.1, fare_amount: 12.5, trip_count: 147 },
+                            { pickup_location_id: 236, dropoff_location_id: 161, trip_distance: 1.8, fare_amount: 10.0, trip_count: 132 },
+                            { pickup_location_id: 79, dropoff_location_id: 161, trip_distance: 3.2, fare_amount: 16.5, trip_count: 98 },
+                            { pickup_location_id: 161, dropoff_location_id: 79, trip_distance: 2.9, fare_amount: 15.0, trip_count: 87 },
+                            { pickup_location_id: 148, dropoff_location_id: 236, trip_distance: 4.1, fare_amount: 18.5, trip_count: 76 }
+                        ];
+                    }
+                },
+                schemaCacheService: {
+                    getStats: () => ({
+                        size: Math.floor(Math.random() * 50),
+                        entryCount: Math.floor(Math.random() * 50),
+                        hitRate: Math.random(),
+                        currentSizeBytes: Math.floor(Math.random() * 1000000),
+                        maxSizeBytes: 10 * 1024 * 1024
+                    }),
+                    clear: () => console.log('Schema cache cleared')
+                },
+                httpCacheService: {
+                    getStats: () => ({
+                        size: Math.floor(Math.random() * 20),
+                        entryCount: Math.floor(Math.random() * 20),
+                        hitRate: Math.random(),
+                        currentSizeBytes: Math.floor(Math.random() * 5000000),
+                        maxSizeBytes: 50 * 1024 * 1024
+                    }),
+                    clear: () => console.log('HTTP cache cleared')
+                },
+                queryCacheService: {
+                    getStats: () => ({
+                        size: Math.floor(Math.random() * 10),
+                        entryCount: Math.floor(Math.random() * 10),
+                        hitRate: Math.random(),
+                        currentSizeBytes: Math.floor(Math.random() * 20000000),
+                        maxSizeBytes: 200 * 1024 * 1024
+                    }),
+                    clear: () => console.log('Query cache cleared')
+                },
+                authManagerService: {
+                    getCredentials: () => null,
+                    setCredentials: () => {},
+                    validateCredentials: () => true,
+                    getAuthHeaders: async () => ({})
+                },
+                performanceOptimizerService: {
+                    getPerformanceReport: () => ({
+                        averageMetrics: {
+                            'cloud-query': {
+                                queryExecutionTime: Math.floor(Math.random() * 2000) + 500,
+                                memoryUsage: Math.floor(Math.random() * 100) * 1024 * 1024,
+                                cacheHitRate: Math.random(),
+                                networkLatency: Math.floor(Math.random() * 300) + 50,
+                                dataSize: Math.floor(Math.random() * 50) * 1024 * 1024
                             }
-                        }),
-                        getFileSchema: async (url) => ({
-                            columns: [
-                                { name: 'VendorID', type: 'integer' },
-                                { name: 'tpep_pickup_datetime', type: 'timestamp' },
-                                { name: 'tpep_dropoff_datetime', type: 'timestamp' },
-                                { name: 'passenger_count', type: 'integer' },
-                                { name: 'trip_distance', type: 'double' },
-                                { name: 'RatecodeID', type: 'integer' },
-                                { name: 'store_and_fwd_flag', type: 'string' },
-                                { name: 'PULocationID', type: 'integer' },
-                                { name: 'DOLocationID', type: 'integer' },
-                                { name: 'payment_type', type: 'integer' },
-                                { name: 'fare_amount', type: 'double' },
-                                { name: 'extra', type: 'double' },
-                                { name: 'mta_tax', type: 'double' },
-                                { name: 'tip_amount', type: 'double' },
-                                { name: 'tolls_amount', type: 'double' },
-                                { name: 'improvement_surcharge', type: 'double' },
-                                { name: 'total_amount', type: 'double' }
-                            ],
-                            format: 'parquet',
-                            rowCount: 3066766 // Actual row count for this dataset
-                        }),
-                        detectProvider: (url) => {
-                            if (url.includes('r2.dev')) return 'cloudflare-r2';
-                            if (url.includes('s3.amazonaws.com') || url.includes('.s3.')) return 'aws-s3';
-                            if (url.includes('googleapis.com')) return 'google-cloud-storage';
-                            if (url.includes('blob.core.windows.net')) return 'azure-blob';
-                            return 'unknown';
-                        }
-                    },
-                    duckdbCloudService: {
-                        registerCloudTable: async (name, url, options) => {
-                            console.log(`Registered table: ${name} from ${url}`);
-                            return { success: true };
                         },
-                        queryCloudTable: async (name) => {
-                            // Sample taxi trip data structure
-                            return [
+                        recommendations: [
+                            'Enable caching for frequently accessed files',
+                            'Consider using streaming for large files',
+                            'Optimize query patterns for better performance'
+                        ]
+                    })
+                },
+                query: async (sql) => {
+                    // Simulate query execution
+                    await new Promise(resolve => setTimeout(resolve, Math.random() * 1000 + 500));
+                    
+                    if (sql.toLowerCase().includes('taxi_trips')) {
+                        // Return mock taxi data that matches the query structure
+                        return {
+                            data: [
                                 { pickup_location_id: 161, dropoff_location_id: 236, trip_distance: 2.1, fare_amount: 12.5, trip_count: 147 },
                                 { pickup_location_id: 236, dropoff_location_id: 161, trip_distance: 1.8, fare_amount: 10.0, trip_count: 132 },
                                 { pickup_location_id: 79, dropoff_location_id: 161, trip_distance: 3.2, fare_amount: 16.5, trip_count: 98 },
                                 { pickup_location_id: 161, dropoff_location_id: 79, trip_distance: 2.9, fare_amount: 15.0, trip_count: 87 },
                                 { pickup_location_id: 148, dropoff_location_id: 236, trip_distance: 4.1, fare_amount: 18.5, trip_count: 76 }
-                            ];
-                        }
-                    },
-                    schemaCacheService: {
-                        getStats: () => ({
-                            size: Math.floor(Math.random() * 50),
-                            entryCount: Math.floor(Math.random() * 50),
-                            hitRate: Math.random(),
-                            currentSizeBytes: Math.floor(Math.random() * 1000000),
-                            maxSizeBytes: 10 * 1024 * 1024
-                        }),
-                        clear: () => console.log('Schema cache cleared')
-                    },
-                    httpCacheService: {
-                        getStats: () => ({
-                            size: Math.floor(Math.random() * 20),
-                            entryCount: Math.floor(Math.random() * 20),
-                            hitRate: Math.random(),
-                            currentSizeBytes: Math.floor(Math.random() * 5000000),
-                            maxSizeBytes: 50 * 1024 * 1024
-                        }),
-                        clear: () => console.log('HTTP cache cleared')
-                    },
-                    queryCacheService: {
-                        getStats: () => ({
-                            size: Math.floor(Math.random() * 10),
-                            entryCount: Math.floor(Math.random() * 10),
-                            hitRate: Math.random(),
-                            currentSizeBytes: Math.floor(Math.random() * 20000000),
-                            maxSizeBytes: 200 * 1024 * 1024
-                        }),
-                        clear: () => console.log('Query cache cleared')
-                    },
-                    performanceOptimizerService: {
-                        getPerformanceReport: () => ({
-                            averageMetrics: {
-                                'cloud-query': {
-                                    queryExecutionTime: Math.floor(Math.random() * 2000) + 500,
-                                    memoryUsage: Math.floor(Math.random() * 100) * 1024 * 1024,
-                                    cacheHitRate: Math.random(),
-                                    networkLatency: Math.floor(Math.random() * 300) + 50,
-                                    dataSize: Math.floor(Math.random() * 50) * 1024 * 1024
-                                }
-                            },
-                            recommendations: [
-                                'Enable caching for frequently accessed files',
-                                'Consider using streaming for large files',
-                                'Optimize query patterns for better performance'
-                            ]
-                        })
-                    },
-                    query: async (sql) => {
-                        // Simulate query execution
-                        await new Promise(resolve => setTimeout(resolve, Math.random() * 1000 + 500));
-                        
-                        if (sql.toLowerCase().includes('taxi_trips')) {
-                            // Return mock taxi data that matches the query structure
-                            return {
-                                data: [
-                                    { pickup_location_id: 161, dropoff_location_id: 236, trip_distance: 2.1, fare_amount: 12.5, trip_count: 147 },
-                                    { pickup_location_id: 236, dropoff_location_id: 161, trip_distance: 1.8, fare_amount: 10.0, trip_count: 132 },
-                                    { pickup_location_id: 79, dropoff_location_id: 161, trip_distance: 3.2, fare_amount: 16.5, trip_count: 98 },
-                                    { pickup_location_id: 161, dropoff_location_id: 79, trip_distance: 2.9, fare_amount: 15.0, trip_count: 87 },
-                                    { pickup_location_id: 148, dropoff_location_id: 236, trip_distance: 4.1, fare_amount: 18.5, trip_count: 76 }
-                                ],
-                                metadata: {
-                                    rowCount: 5,
-                                    executionTime: Math.floor(Math.random() * 2000) + 500,
-                                    memoryUsage: Math.floor(Math.random() * 50000000) + 10000000
-                                }
-                            };
-                        } else if (sql.toLowerCase().includes('select')) {
-                            return {
-                                data: [
-                                    { message: 'Query executed against cloud storage!', timestamp: new Date().toISOString() }
-                                ],
-                                metadata: {
-                                    rowCount: 1,
-                                    executionTime: Math.floor(Math.random() * 1000) + 100,
-                                    memoryUsage: Math.floor(Math.random() * 1000000)
-                                }
-                            };
-                        } else {
-                            return { data: [], metadata: { rowCount: 0, executionTime: 50, memoryUsage: 1000 } };
-                        }
+                            ],
+                            metadata: {
+                                rowCount: 5,
+                                executionTime: Math.floor(Math.random() * 2000) + 500,
+                                memoryUsage: Math.floor(Math.random() * 50000000) + 10000000
+                            }
+                        };
+                    } else if (sql.toLowerCase().includes('select')) {
+                        return {
+                            data: [
+                                { message: 'Query executed against cloud storage!', timestamp: new Date().toISOString() }
+                            ],
+                            metadata: {
+                                rowCount: 1,
+                                executionTime: Math.floor(Math.random() * 1000) + 100,
+                                memoryUsage: Math.floor(Math.random() * 1000000)
+                            }
+                        };
+                    } else {
+                        return { data: [], metadata: { rowCount: 0, executionTime: 50, memoryUsage: 1000 } };
                     }
-                };
-                
-                    engineReady = true;
-                    updateEngineStatus('ready', 'Engine Ready (Fallback Mode)');
                 }
-            } catch (error) {
-                console.error('Failed to initialize engine:', error);
-                updateEngineStatus('error', 'Initialization Failed');
-            }
+            };
         }
 
         function updateEngineStatus(status, message) {
