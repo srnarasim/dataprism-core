@@ -568,7 +568,35 @@ LIMIT 10</textarea>
                 displayResults('schema-results', schema, 'File Schema (Direct DuckDB)');
                 
             } catch (directError) {
+                console.error('Direct schema detection error details:', directError);
                 console.warn('Direct schema detection failed, trying cloud service:', directError.message);
+                
+                // Try a simpler approach first - just query the file directly
+                try {
+                    console.log('Trying simple SELECT query to test file access');
+                    const testSql = `SELECT * FROM read_parquet('${url}') LIMIT 1`;
+                    const testResult = await engine.query(testSql);
+                    
+                    // If the SELECT works, we can infer the schema from the result
+                    if (testResult.data && testResult.data.length > 0) {
+                        const sampleRow = testResult.data[0];
+                        const schema = {
+                            columns: Object.keys(sampleRow).map(key => ({
+                                name: key,
+                                type: typeof sampleRow[key]
+                            })),
+                            format: 'parquet',
+                            method: 'Direct DuckDB SELECT (inferred)',
+                            rowCount: 1,
+                            sampleData: sampleRow
+                        };
+                        
+                        displayResults('schema-results', schema, 'File Schema (Inferred from Data)');
+                        return;
+                    }
+                } catch (selectError) {
+                    console.error('Simple SELECT also failed:', selectError);
+                }
                 
                 try {
                     // Fallback to cloud storage service
@@ -580,7 +608,7 @@ LIMIT 10</textarea>
                     const schema = await cloudStorage.getFileSchema(url);
                     displayResults('schema-results', schema, 'File Schema (Cloud Service)');
                 } catch (cloudError) {
-                    displayError('schema-results', new Error(`Both methods failed. Direct: ${directError.message}. Cloud service: ${cloudError.message}`), 'Schema Detection Error');
+                    displayError('schema-results', new Error(`All methods failed. DESCRIBE: ${directError.message}. SELECT: Failed. Cloud service: ${cloudError.message}`), 'Schema Detection Error');
                 }
             }
         };

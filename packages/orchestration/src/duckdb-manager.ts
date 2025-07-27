@@ -22,6 +22,21 @@ export class DuckDBManager {
       this.db = await this.cdnLoader.createDuckDB();
       this.connection = await this.db.connect();
 
+      // Enable HTTPFS extension for HTTP/HTTPS access
+      try {
+        await this.connection.query("INSTALL httpfs;");
+        await this.connection.query("LOAD httpfs;");
+        
+        // Configure HTTP settings for better compatibility
+        await this.connection.query("SET enable_http_metadata_cache=true;");
+        await this.connection.query("SET http_timeout=30000;");
+        
+        console.log("DuckDB HTTPFS extension loaded successfully");
+      } catch (httpfsError) {
+        console.warn("Failed to load HTTPFS extension:", httpfsError);
+        // Continue without HTTPFS - some functionality may be limited
+      }
+
       this.initialized = true;
       console.log("DuckDB initialized successfully");
     } catch (error) {
