@@ -4,14 +4,22 @@ import {
   DataPrismConfig,
   EngineStatus,
   PerformanceMetrics,
+  HttpClientConfig,
 } from "./types.js";
 import { ErrorHandler } from "./error-handler.js";
 import { DependencyRegistry } from "./dependency-registry.js";
 import { ArrowLoader } from "./arrow-loader.js";
+import { DataPrismHttpClient } from "./http-client.js";
+import { CloudStorageService } from "./cloud-storage-service.js";
+import { DuckDBCloudIntegration } from "./duckdb-cloud-integration.js";
+import { CacheManager, FileSchemaCache, HttpResponseCache, QueryResultCache } from "./cache-manager.js";
+import { AuthManager } from "./auth-manager.js";
+import { PerformanceOptimizer } from "./performance-optimizer.js";
 
 // WASM module will be available after build
 interface WasmModule {
   QueryEngine: any;
+  CloudStorageBridge: any;
   init_panic_hook: () => void;
   get_version: () => string;
   get_build_info: () => any;
@@ -27,6 +35,20 @@ export class DataPrismEngine {
   private errorHandler = ErrorHandler.getInstance();
   private dependencyRegistry = DependencyRegistry.getInstance();
   private arrowLoader = ArrowLoader.getInstance();
+  
+  // Cloud storage services
+  private httpClient: DataPrismHttpClient | null = null;
+  private cloudStorage: CloudStorageService | null = null;
+  private duckdbCloud: DuckDBCloudIntegration | null = null;
+  
+  // Advanced features
+  private cacheManager: CacheManager<any> | null = null;
+  private schemaCache: FileSchemaCache | null = null;
+  private httpCache: HttpResponseCache | null = null;
+  private queryCache: QueryResultCache | null = null;
+  private authManager: AuthManager | null = null;
+  private performanceOptimizer: PerformanceOptimizer | null = null;
+  
   private metrics: PerformanceMetrics = {
     queryCount: 0,
     totalExecutionTime: 0,
@@ -68,6 +90,14 @@ export class DataPrismEngine {
       initPromises.push(
         this.arrowLoader.loadArrow().catch(error => {
           this.log("warn", `Arrow initialization failed: ${error.message}`);
+          return null;
+        })
+      );
+
+      // Initialize Cloud Storage services
+      initPromises.push(
+        this.initializeCloudStorage().catch(error => {
+          this.log("warn", `Cloud storage initialization failed: ${error.message}`);
           return null;
         })
       );
@@ -423,6 +453,108 @@ export class DataPrismEngine {
     return this.dependencyRegistry.getHealthStatus();
   }
 
+  private async initializeCloudStorage(): Promise<void> {
+    try {
+      // Initialize advanced features first
+      this.cacheManager = new CacheManager();
+      this.schemaCache = new FileSchemaCache();
+      this.httpCache = new HttpResponseCache();
+      this.queryCache = new QueryResultCache();
+      this.authManager = new AuthManager();
+      this.performanceOptimizer = new PerformanceOptimizer();
+
+      // Initialize HTTP client with configuration
+      const httpConfig: HttpClientConfig = {
+        timeout: this.config.corsConfig?.retryAttempts ? this.config.corsConfig.retryAttempts * 10000 : 30000,
+        retries: this.config.corsConfig?.retryAttempts || 3,
+        proxy: {
+          enableForProviders: ['aws-s3', 'cloudflare-r2', 'google-cloud-storage', 'azure-blob'],
+          maxFileSize: 1024 * 1024 * 1024, // 1GB
+          cacheDuration: this.config.corsConfig?.cacheTimeout || 3600000, // 1 hour
+          authPassthrough: true,
+          corsHeaders: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+            'Access-Control-Allow-Headers': 'Range, Content-Type, Authorization'
+          }
+        }
+      };
+
+      this.httpClient = new DataPrismHttpClient(httpConfig);
+      this.cloudStorage = new CloudStorageService(this.httpClient);
+
+      // Configure cloud providers and authentication
+      if (this.config.cloudProviders) {
+        for (const [provider, config] of Object.entries(this.config.cloudProviders)) {
+          this.cloudStorage.configureProvider(provider as any, config);
+          
+          // Set up authentication if credentials are provided
+          if (config.credentials) {
+            this.authManager.setCredentials(provider as any, config.credentials);
+          }
+        }
+      }
+
+      // Initialize DuckDB cloud integration once DuckDB is ready
+      if (this.duckdb) {
+        const duckdbInstance = await this.duckdb.getDuckDB();
+        if (duckdbInstance) {
+          this.duckdbCloud = new DuckDBCloudIntegration(duckdbInstance, this.cloudStorage);
+          
+          // Initialize cloud storage support in DuckDB
+          await this.duckdbCloud.registerCloudStorage({
+            enableHttpfs: true,
+            proxyEndpoint: this.config.corsConfig?.proxyEndpoint,
+            credentials: this.config.cloudProviders
+          });
+        }
+      }
+
+      this.log("info", "Cloud storage services and advanced features initialized successfully");
+    } catch (error) {
+      this.log("error", `Failed to initialize cloud storage: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw error;
+    }
+  }
+
+  // Public getters for cloud storage services
+  get httpClientService(): DataPrismHttpClient | null {
+    return this.httpClient;
+  }
+
+  get cloudStorageService(): CloudStorageService | null {
+    return this.cloudStorage;
+  }
+
+  get duckdbCloudService(): DuckDBCloudIntegration | null {
+    return this.duckdbCloud;
+  }
+
+  // Public getters for advanced features
+  get cacheManagerService(): CacheManager<any> | null {
+    return this.cacheManager;
+  }
+
+  get schemaCacheService(): FileSchemaCache | null {
+    return this.schemaCache;
+  }
+
+  get httpCacheService(): HttpResponseCache | null {
+    return this.httpCache;
+  }
+
+  get queryCacheService(): QueryResultCache | null {
+    return this.queryCache;
+  }
+
+  get authManagerService(): AuthManager | null {
+    return this.authManager;
+  }
+
+  get performanceOptimizerService(): PerformanceOptimizer | null {
+    return this.performanceOptimizer;
+  }
+
   private logDependencyStatus(): void {
     const status = this.getDependencyStatus();
     const health = this.getDependencyHealth();
@@ -440,8 +572,36 @@ export class DataPrismEngine {
     if (this.duckdb) {
       await this.duckdb.close();
     }
+    
+    // Clean up advanced features
+    if (this.cacheManager) {
+      this.cacheManager.destroy();
+    }
+    if (this.schemaCache) {
+      this.schemaCache.destroy();
+    }
+    if (this.httpCache) {
+      this.httpCache.destroy();
+    }
+    if (this.queryCache) {
+      this.queryCache.destroy();
+    }
+    if (this.authManager) {
+      this.authManager.clearCredentials();
+    }
+
     this.wasmEngine = null;
     this.wasmModule = null;
+    this.httpClient = null;
+    this.cloudStorage = null;
+    this.duckdbCloud = null;
+    this.cacheManager = null;
+    this.schemaCache = null;
+    this.httpCache = null;
+    this.queryCache = null;
+    this.authManager = null;
+    this.performanceOptimizer = null;
+    
     this.initialized = false;
     this.dependencyRegistry.clearAll();
     this.log("info", "DataPrism Engine closed");

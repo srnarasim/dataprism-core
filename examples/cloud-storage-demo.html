@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DataPrism Cloud Storage Demo</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .panel {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            background: #f9f9f9;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background: #005ea3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .results {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .error {
+            color: #d32f2f;
+            background: #ffebee;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .success {
+            color: #2e7d32;
+            background: #e8f5e8;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .status {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+        .status.ready { background: #e8f5e8; color: #2e7d32; }
+        .status.loading { background: #fff3e0; color: #f57c00; }
+        .status.error { background: #ffebee; color: #d32f2f; }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        h1 { color: #333; }
+        h2 { color: #555; margin-top: 0; }
+    </style>
+</head>
+<body>
+    <h1>DataPrism Cloud Storage Demo</h1>
+    <p>Demonstration of CORS-aware cloud storage integration with automatic proxy fallback.</p>
+    
+    <div id="engine-status" class="status loading">Initializing Engine...</div>
+    
+    <div class="container">
+        <div class="panel">
+            <h2>CORS Testing</h2>
+            <div class="input-group">
+                <label for="cors-url">Cloud Storage URL:</label>
+                <input type="url" id="cors-url" 
+                       placeholder="https://my-bucket.s3.amazonaws.com/data.json"
+                       value="https://jsonplaceholder.typicode.com/posts">
+            </div>
+            <button onclick="testCorsSupport()">Test CORS Support</button>
+            <button onclick="fetchWithCorsHandling()">Fetch with CORS Handling</button>
+            <div id="cors-results" class="results"></div>
+        </div>
+
+        <div class="panel">
+            <h2>File Schema Detection</h2>
+            <div class="input-group">
+                <label for="schema-url">File URL:</label>
+                <input type="url" id="schema-url" 
+                       placeholder="https://example.com/data.csv"
+                       value="https://jsonplaceholder.typicode.com/posts">
+            </div>
+            <button onclick="detectFileSchema()">Detect Schema</button>
+            <button onclick="getFileMetadata()">Get Metadata</button>
+            <div id="schema-results" class="results"></div>
+        </div>
+
+        <div class="panel">
+            <h2>DuckDB Cloud Integration</h2>
+            <div class="input-group">
+                <label for="table-name">Table Name:</label>
+                <input type="text" id="table-name" placeholder="my_table" value="posts">
+            </div>
+            <div class="input-group">
+                <label for="table-url">Data URL:</label>
+                <input type="url" id="table-url" 
+                       placeholder="https://example.com/data.parquet"
+                       value="https://jsonplaceholder.typicode.com/posts">
+            </div>
+            <div class="input-group">
+                <label for="cors-handling">CORS Handling:</label>
+                <select id="cors-handling">
+                    <option value="auto">Auto</option>
+                    <option value="direct">Direct</option>
+                    <option value="proxy">Proxy</option>
+                </select>
+            </div>
+            <button onclick="registerCloudTable()">Register Table</button>
+            <button onclick="queryCloudTable()">Query Table</button>
+            <div id="duckdb-results" class="results"></div>
+        </div>
+
+        <div class="panel">
+            <h2>Performance & Caching</h2>
+            <button onclick="getCacheStats()">Cache Statistics</button>
+            <button onclick="getPerformanceReport()">Performance Report</button>
+            <button onclick="clearAllCaches()">Clear Caches</button>
+            <div id="performance-results" class="results"></div>
+        </div>
+    </div>
+
+    <div class="panel" style="margin-top: 20px;">
+        <h2>SQL Query Interface</h2>
+        <div class="input-group">
+            <label for="sql-query">SQL Query:</label>
+            <textarea id="sql-query" rows="4" placeholder="SELECT * FROM my_table LIMIT 10">SELECT 'Hello from DataPrism Cloud Storage!' as message</textarea>
+        </div>
+        <button onclick="executeQuery()">Execute Query</button>
+        <div id="query-results" class="results"></div>
+    </div>
+
+    <!-- Load DataPrism Core from CDN -->
+    <script type="module">
+        let engine = null;
+        let engineReady = false;
+
+        // Initialize DataPrism Engine
+        async function initializeEngine() {
+            try {
+                // In a real implementation, this would load from the actual CDN
+                // For this demo, we'll simulate the engine initialization
+                console.log('Initializing DataPrism Engine...');
+                
+                // Simulate engine configuration
+                const config = {
+                    enableWasmOptimizations: false,
+                    maxMemoryMB: 1024,
+                    queryTimeoutMs: 30000,
+                    logLevel: 'info',
+                    corsConfig: {
+                        strategy: 'auto',
+                        cacheTimeout: 300000,
+                        retryAttempts: 3
+                    }
+                };
+
+                // Simulate successful initialization
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                // Mock engine object for demo
+                engine = {
+                    httpClientService: {
+                        testCorsSupport: async (url) => ({
+                            supportsDirectAccess: Math.random() > 0.5,
+                            requiresProxy: Math.random() > 0.3,
+                            supportedMethods: ['GET', 'HEAD'],
+                            maxFileSize: 1024 * 1024 * 10
+                        }),
+                        fetchWithCorsHandling: async (url) => {
+                            const response = await fetch(url);
+                            return response;
+                        },
+                        detectProvider: (url) => {
+                            if (url.includes('s3.amazonaws.com') || url.includes('.s3.')) return 'aws-s3';
+                            if (url.includes('r2.dev')) return 'cloudflare-r2';
+                            if (url.includes('googleapis.com')) return 'google-cloud-storage';
+                            if (url.includes('blob.core.windows.net')) return 'azure-blob';
+                            return 'unknown';
+                        }
+                    },
+                    cloudStorageService: {
+                        getFile: async (url) => ({
+                            url,
+                            provider: 'demo',
+                            metadata: {
+                                size: Math.floor(Math.random() * 1000000),
+                                contentType: 'application/json',
+                                lastModified: new Date(),
+                                provider: 'demo'
+                            },
+                            getContentAsText: async () => {
+                                const response = await fetch(url);
+                                return await response.text();
+                            },
+                            getContentAsBuffer: async () => {
+                                const response = await fetch(url);
+                                return await response.arrayBuffer();
+                            }
+                        }),
+                        getFileSchema: async (url) => ({
+                            columns: [
+                                { name: 'id', type: 'number' },
+                                { name: 'title', type: 'string' },
+                                { name: 'body', type: 'string' },
+                                { name: 'userId', type: 'number' }
+                            ],
+                            format: 'json',
+                            rowCount: Math.floor(Math.random() * 1000)
+                        })
+                    },
+                    duckdbCloudService: {
+                        registerCloudTable: async (name, url, options) => {
+                            console.log(`Registered table: ${name} from ${url}`);
+                            return { success: true };
+                        },
+                        queryCloudTable: async (name) => {
+                            return [
+                                { id: 1, title: 'Sample Post 1', userId: 1 },
+                                { id: 2, title: 'Sample Post 2', userId: 1 },
+                                { id: 3, title: 'Sample Post 3', userId: 2 }
+                            ];
+                        }
+                    },
+                    schemaCacheService: {
+                        getStats: () => ({
+                            size: Math.floor(Math.random() * 50),
+                            entryCount: Math.floor(Math.random() * 50),
+                            hitRate: Math.random(),
+                            currentSizeBytes: Math.floor(Math.random() * 1000000),
+                            maxSizeBytes: 10 * 1024 * 1024
+                        }),
+                        clear: () => console.log('Schema cache cleared')
+                    },
+                    httpCacheService: {
+                        getStats: () => ({
+                            size: Math.floor(Math.random() * 20),
+                            entryCount: Math.floor(Math.random() * 20),
+                            hitRate: Math.random(),
+                            currentSizeBytes: Math.floor(Math.random() * 5000000),
+                            maxSizeBytes: 50 * 1024 * 1024
+                        }),
+                        clear: () => console.log('HTTP cache cleared')
+                    },
+                    queryCacheService: {
+                        getStats: () => ({
+                            size: Math.floor(Math.random() * 10),
+                            entryCount: Math.floor(Math.random() * 10),
+                            hitRate: Math.random(),
+                            currentSizeBytes: Math.floor(Math.random() * 20000000),
+                            maxSizeBytes: 200 * 1024 * 1024
+                        }),
+                        clear: () => console.log('Query cache cleared')
+                    },
+                    performanceOptimizerService: {
+                        getPerformanceReport: () => ({
+                            averageMetrics: {
+                                'cloud-query': {
+                                    queryExecutionTime: Math.floor(Math.random() * 2000) + 500,
+                                    memoryUsage: Math.floor(Math.random() * 100) * 1024 * 1024,
+                                    cacheHitRate: Math.random(),
+                                    networkLatency: Math.floor(Math.random() * 300) + 50,
+                                    dataSize: Math.floor(Math.random() * 50) * 1024 * 1024
+                                }
+                            },
+                            recommendations: [
+                                'Enable caching for frequently accessed files',
+                                'Consider using streaming for large files',
+                                'Optimize query patterns for better performance'
+                            ]
+                        })
+                    },
+                    query: async (sql) => {
+                        // Simulate query execution
+                        await new Promise(resolve => setTimeout(resolve, Math.random() * 1000 + 500));
+                        
+                        if (sql.toLowerCase().includes('select')) {
+                            return {
+                                data: [
+                                    { message: 'Hello from DataPrism Cloud Storage!', timestamp: new Date().toISOString() }
+                                ],
+                                metadata: {
+                                    rowCount: 1,
+                                    executionTime: Math.floor(Math.random() * 1000) + 100,
+                                    memoryUsage: Math.floor(Math.random() * 1000000)
+                                }
+                            };
+                        } else {
+                            return { data: [], metadata: { rowCount: 0, executionTime: 50, memoryUsage: 1000 } };
+                        }
+                    }
+                };
+
+                engineReady = true;
+                updateEngineStatus('ready', 'Engine Ready');
+                console.log('DataPrism Engine initialized successfully');
+            } catch (error) {
+                console.error('Failed to initialize engine:', error);
+                updateEngineStatus('error', 'Initialization Failed');
+            }
+        }
+
+        function updateEngineStatus(status, message) {
+            const statusEl = document.getElementById('engine-status');
+            statusEl.className = `status ${status}`;
+            statusEl.textContent = message;
+        }
+
+        function displayResults(elementId, data, title = '') {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            
+            let html = '';
+            if (title) {
+                html += `<h4>${title} (${timestamp})</h4>`;
+            }
+            
+            if (typeof data === 'object') {
+                html += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            } else {
+                html += `<div>${data}</div>`;
+            }
+            
+            element.innerHTML = html + element.innerHTML;
+        }
+
+        function displayError(elementId, error, title = 'Error') {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            
+            const html = `
+                <div class="error">
+                    <h4>${title} (${timestamp})</h4>
+                    <div>${error.message || error}</div>
+                </div>
+            `;
+            
+            element.innerHTML = html + element.innerHTML;
+        }
+
+        // Make functions globally available
+        window.testCorsSupport = async function() {
+            if (!engineReady) return;
+            
+            const url = document.getElementById('cors-url').value;
+            if (!url) return;
+
+            try {
+                const result = await engine.httpClientService.testCorsSupport(url);
+                const provider = engine.httpClientService.detectProvider(url);
+                displayResults('cors-results', { ...result, detectedProvider: provider }, 'CORS Support Test');
+            } catch (error) {
+                displayError('cors-results', error, 'CORS Test Error');
+            }
+        };
+
+        window.fetchWithCorsHandling = async function() {
+            if (!engineReady) return;
+            
+            const url = document.getElementById('cors-url').value;
+            if (!url) return;
+
+            try {
+                const response = await engine.httpClientService.fetchWithCorsHandling(url);
+                const text = await response.text();
+                const preview = text.length > 500 ? text.substring(0, 500) + '...' : text;
+                
+                displayResults('cors-results', {
+                    status: response.status,
+                    contentLength: text.length,
+                    preview: preview
+                }, 'Fetch with CORS Handling');
+            } catch (error) {
+                displayError('cors-results', error, 'Fetch Error');
+            }
+        };
+
+        window.detectFileSchema = async function() {
+            if (!engineReady) return;
+            
+            const url = document.getElementById('schema-url').value;
+            if (!url) return;
+
+            try {
+                const schema = await engine.cloudStorageService.getFileSchema(url);
+                displayResults('schema-results', schema, 'File Schema');
+            } catch (error) {
+                displayError('schema-results', error, 'Schema Detection Error');
+            }
+        };
+
+        window.getFileMetadata = async function() {
+            if (!engineReady) return;
+            
+            const url = document.getElementById('schema-url').value;
+            if (!url) return;
+
+            try {
+                const file = await engine.cloudStorageService.getFile(url);
+                displayResults('schema-results', file.metadata, 'File Metadata');
+            } catch (error) {
+                displayError('schema-results', error, 'Metadata Error');
+            }
+        };
+
+        window.registerCloudTable = async function() {
+            if (!engineReady) return;
+            
+            const tableName = document.getElementById('table-name').value;
+            const tableUrl = document.getElementById('table-url').value;
+            const corsHandling = document.getElementById('cors-handling').value;
+            
+            if (!tableName || !tableUrl) return;
+
+            try {
+                const result = await engine.duckdbCloudService.registerCloudTable(
+                    tableName, 
+                    tableUrl, 
+                    { corsHandling }
+                );
+                displayResults('duckdb-results', { tableName, tableUrl, corsHandling, result }, 'Table Registration');
+            } catch (error) {
+                displayError('duckdb-results', error, 'Registration Error');
+            }
+        };
+
+        window.queryCloudTable = async function() {
+            if (!engineReady) return;
+            
+            const tableName = document.getElementById('table-name').value;
+            if (!tableName) return;
+
+            try {
+                const data = await engine.duckdbCloudService.queryCloudTable(tableName);
+                displayResults('duckdb-results', { tableName, rowCount: data.length, data: data.slice(0, 5) }, 'Query Results');
+            } catch (error) {
+                displayError('duckdb-results', error, 'Query Error');
+            }
+        };
+
+        window.getCacheStats = function() {
+            if (!engineReady) return;
+
+            const stats = {
+                schemaCache: engine.schemaCacheService.getStats(),
+                httpCache: engine.httpCacheService.getStats(),
+                queryCache: engine.queryCacheService.getStats()
+            };
+            
+            displayResults('performance-results', stats, 'Cache Statistics');
+        };
+
+        window.getPerformanceReport = function() {
+            if (!engineReady) return;
+
+            const report = engine.performanceOptimizerService.getPerformanceReport();
+            displayResults('performance-results', report, 'Performance Report');
+        };
+
+        window.clearAllCaches = function() {
+            if (!engineReady) return;
+
+            engine.schemaCacheService.clear();
+            engine.httpCacheService.clear();
+            engine.queryCacheService.clear();
+            
+            displayResults('performance-results', { message: 'All caches cleared successfully' }, 'Cache Management');
+        };
+
+        window.executeQuery = async function() {
+            if (!engineReady) return;
+            
+            const sql = document.getElementById('sql-query').value;
+            if (!sql) return;
+
+            try {
+                const result = await engine.query(sql);
+                displayResults('query-results', result, 'SQL Query Result');
+            } catch (error) {
+                displayError('query-results', error, 'Query Execution Error');
+            }
+        };
+
+        // Initialize on page load
+        initializeEngine();
+    </script>
+</body>
+</html>

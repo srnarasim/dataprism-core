@@ -167,4 +167,12 @@ export class DuckDBManager {
   isInitialized(): boolean {
     return this.initialized;
   }
+
+  async getDuckDB(): Promise<AsyncDuckDB | null> {
+    return this.db;
+  }
+
+  async getConnection(): Promise<AsyncDuckDBConnection | null> {
+    return this.connection;
+  }
 }

@@ -6,6 +6,20 @@ export { ArrowLoader } from "./arrow-loader.js";
 export { DependencyErrorHandler } from "./dependency-error-handler.js";
 export { DependencyEventSystem } from "./dependency-events.js";
 
+// Cloud Storage Services
+export { DataPrismHttpClient } from "./http-client.js";
+export { ProxyService } from "./proxy-service.js";
+export { CloudStorageService, FileHandle } from "./cloud-storage-service.js";
+export { DuckDBCloudIntegration } from "./duckdb-cloud-integration.js";
+
+// Advanced Features
+export { CacheManager, FileSchemaCache, HttpResponseCache, QueryResultCache } from "./cache-manager.js";
+export { AuthManager } from "./auth-manager.js";
+export { PerformanceOptimizer } from "./performance-optimizer.js";
+
+// Plugin System (Enhanced)
+export { PluginContextBuilder, PluginMigrationSupport, PluginCloudStorageHelper } from "./plugin-context.js";
+
 // Plugin System Exports - Note: Plugin system is now in separate @dataprism/plugins package
 // These exports are temporarily disabled until proper package dependency is established
 // export { ... } from "@dataprism/plugins";
@@ -19,6 +33,19 @@ export type {
   EngineStatus,
   Logger,
   LogLevel,
+  // Cloud Storage Types
+  CloudProvider,
+  CorsSupport,
+  HttpClientConfig,
+  ProxyConfig,
+  ProxyEndpoint,
+  CachedResponse,
+  ProviderConfig,
+  CloudCredentials,
+  FileAccessOptions,
+  FileMetadata,
+  FileSchema,
+  CloudStorageError,
 } from "./types.js";
 
 // Plugin System Types - Note: Plugin system is now in separate @dataprism/plugins package
@@ -46,6 +73,18 @@ export type {
   DataPrismEvent,
   DataPrismEventHandler,
 } from "./dependency-events.js";
+
+export type {
+  CloudTableOptions,
+  CloudTableConfig,
+  FallbackStrategy,
+} from "./duckdb-cloud-integration.js";
+
+export type {
+  PluginContext,
+  EnhancedPluginContext,
+  CorsStrategy,
+} from "./plugin-context.js";
 
 // Version information
 export const version = "0.1.0";
